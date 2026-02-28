@@ -1,6 +1,7 @@
 import type { ChallengeCardDef } from '../../types/card';
 import type { RegisteredHandler, ScoreEndContext } from '../../types/events';
 import { GAME_EVENTS } from '../../events/GameEvents';
+import { Logger } from '../../utils/Logger';
 
 export const Earthquake: ChallengeCardDef = {
   id: 'challenge_earthquake',
@@ -21,6 +22,7 @@ export const Earthquake: ChallengeCardDef = {
           type: 'MODIFY_TOTAL_SCORE',
           multiplier: 0.9,
         });
+        Logger.handler('强震', 'challenge', 10, true, `计分结束 → 总分 ×0.9 (本次得分 ${ctx.totalScoreGained.toFixed(1)})`);
       },
     }];
   },

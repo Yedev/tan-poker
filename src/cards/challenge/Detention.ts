@@ -1,6 +1,7 @@
 import type { ChallengeCardDef } from '../../types/card';
 import type { RegisteredHandler, ScoreEndContext } from '../../types/events';
 import { GAME_EVENTS } from '../../events/GameEvents';
+import { Logger } from '../../utils/Logger';
 
 export const Detention: ChallengeCardDef = {
   id: 'challenge_detention',
@@ -22,6 +23,7 @@ export const Detention: ChallengeCardDef = {
           delta: -1,
           trimExcess: true,
         });
+        Logger.handler('扣留', 'challenge', 10, true, `计分结束 → 手牌上限 -1 (当前 ${ctx.gameState.handSize})`);
       },
     }];
   },

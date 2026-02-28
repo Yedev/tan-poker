@@ -1,6 +1,7 @@
 import type { ChallengeCardDef } from '../../types/card';
 import type { RegisteredHandler, ScoreEndContext } from '../../types/events';
 import { GAME_EVENTS } from '../../events/GameEvents';
+import { Logger } from '../../utils/Logger';
 
 export const AcidRain: ChallengeCardDef = {
   id: 'challenge_acid_rain',
@@ -23,6 +24,7 @@ export const AcidRain: ChallengeCardDef = {
           valueChange: -2,
           recalculateCollapse: true,
         });
+        Logger.handler('酸雨腐蚀', 'challenge', 10, true, '计分结束 → 随机 3 张牌 rank -2 (重算坍塌)');
       },
     }];
   },

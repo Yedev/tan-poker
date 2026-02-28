@@ -49,7 +49,11 @@ export const BOARD_LAYOUT = {
 };
 
 export const HAND_Y = 600;
-export const HAND_SPACING = 80;
+export const HAND_SPACING = 50;
+
+// Deck pile display position (bottom-right area)
+export const DECK_PILE_X = 1070;
+export const DECK_PILE_Y = 640;
 
 export const SUITS = ['spades', 'hearts', 'clubs', 'diamonds'] as const;
 export const SUIT_SYMBOLS: Record<string, string> = {

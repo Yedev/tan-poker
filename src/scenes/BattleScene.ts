@@ -19,8 +19,10 @@ import { BoardSlot } from '../gameobjects/BoardSlot';
 import {
   BOARD_LAYOUT, HAND_Y, HAND_SPACING, GAME_WIDTH,
   LAYER_SLOT_COUNTS, SCORE_CHANCES_PER_LEVEL, DISCARD_CHANCES_PER_ROUND,
+  DECK_PILE_X, DECK_PILE_Y,
   getTargetScore,
 } from '../config';
+import { Logger } from '../utils/Logger';
 
 export class BattleScene extends Phaser.Scene {
   private phaseManager!: PhaseManager;
@@ -49,8 +51,6 @@ export class BattleScene extends Phaser.Scene {
   }
 
   create() {
-    this.scene.launch('UIScene');
-
     const gs = GameState.getInstance();
     gs.currentLevel = this.level;
     this.targetScore = getTargetScore(this.level);
@@ -58,12 +58,19 @@ export class BattleScene extends Phaser.Scene {
     this.scoreChances = SCORE_CHANCES_PER_LEVEL;
     this.discardChances = DISCARD_CHANCES_PER_ROUND;
 
+    Logger.info(`━━━━━━━━━━ 关卡 ${this.level} 初始化 ━━━━━━━━━━`);
+    Logger.info(`目标分数: ${this.targetScore}  计分次数: ${this.scoreChances}  弃牌次数/轮: ${this.discardChances}`);
+
     const ges = GameEventSystem.getInstance();
     ges.unregisterAll();
     gs.enhanceSlots.forEach((card, i) => {
-      if (card) ges.registerAll(card.getHandlers(i));
+      if (card) {
+        Logger.info(`加载增益卡 [Layer${i}]: ${card.name} (${card.id})`);
+        ges.registerAll(card.getHandlers(i));
+      }
     });
     gs.challengeCards.forEach(card => {
+      Logger.info(`加载挑战卡: ${card.name} (${card.id})`);
       ges.registerAll(card.getHandlers());
     });
 
@@ -72,7 +79,12 @@ export class BattleScene extends Phaser.Scene {
     this.setupDragHandlers();
     this.setupUIListeners();
 
+    // syncRegistry must run BEFORE scene.launch('UIScene') so that when UIScene
+    // boots synchronously and calls refreshFromRegistry(), all values are ready.
+    // Launching AFTER prevents UIScene's event handlers from firing on a
+    // partially-initialised Text canvas (which causes the null drawImage crash).
     this.syncRegistry();
+    this.scene.launch('UIScene');
 
     this.phaseManager = new PhaseManager((phase) => {
       this.registry.set('phase', phase);
@@ -86,6 +98,7 @@ export class BattleScene extends Phaser.Scene {
     this.layers = [];
     this.pokerSlots = [];
     this.enhanceSlots = [];
+    this.handCards = [];        // clear stale Card refs from previous scene run
     this.boardCardObjects.clear();
     this.weightTexts = [];
 
@@ -139,45 +152,118 @@ export class BattleScene extends Phaser.Scene {
     const gs = GameState.getInstance();
     this.drawPile = shuffle([...gs.deck]);
     this.discardPile = [];
+    Logger.deck(`牌库初始化  总牌数: ${this.drawPile.length}  [${Logger.fmtCards(this.drawPile)}]`);
   }
 
   private drawCards(count: number): CardData[] {
     if (this.drawPile.length < count) {
+      Logger.deck(`牌库不足 (剩 ${this.drawPile.length})，将弃牌堆 ${this.discardPile.length} 张洗入牌库`);
       this.drawPile.push(...shuffle(this.discardPile));
       this.discardPile = [];
+      Logger.deck(`洗牌后牌库: ${this.drawPile.length} 张`);
     }
-    return draw(this.drawPile, count);
+    const drawn = draw(this.drawPile, count);
+    Logger.deck(`摸牌 ${drawn.length} 张: [${Logger.fmtCards(drawn)}]  牌库剩余: ${this.drawPile.length}`);
+    return drawn;
   }
 
   private fillHand() {
     const gs = GameState.getInstance();
     const need = gs.handSize - this.handCards.length;
     if (need <= 0) return;
+
+    Logger.card('补手牌', `需要 ${need} 张 (手牌上限 ${gs.handSize}，当前 ${this.handCards.length})`);
     const drawn = this.drawCards(need);
-    for (const cardData of drawn) {
-      const card = new Card(this, 0, HAND_Y, cardData);
+
+    // Sync deck count after drawing (includes any discard-pile reshuffle)
+    this.registry.set('drawPileCount', this.drawPile.length);
+
+    // Pre-calculate final hand positions for ALL cards (existing + new)
+    const totalCount = this.handCards.length + drawn.length;
+
+    // Snap existing hand cards to their updated positions
+    const existingCount = this.handCards.length;
+    for (let i = 0; i < existingCount; i++) {
+      const card = this.handCards[i];
+      const { x, y, angle } = this.handCardTransform(i, totalCount);
+      card.setHome(x, y, angle);
+      card.setPosition(x, y);
+      card.setAngle(angle);
+      card.setDepth(10 + i);
+    }
+
+    // Animate each new card flying from the deck pile to its hand position
+    for (let i = 0; i < drawn.length; i++) {
+      const cardData = drawn[i];
+      const { x: finalX, y: finalY, angle: finalAngle } = this.handCardTransform(existingCount + i, totalCount);
+      const finalDepth = 10 + existingCount + i;
+
+      // Start at deck pile position (card_back visible, face down)
+      const card = new Card(this, DECK_PILE_X, DECK_PILE_Y, cardData);
+      card.setTexture('card_back');
+
       card.location = 'hand';
-      card.setDepth(10);
+      card.setDepth(finalDepth);
       this.handCards.push(card);
+
+      this.tweens.add({
+        targets: card,
+        x: finalX,
+        y: finalY,
+        angle: finalAngle,
+        duration: 260,
+        delay: i * 75,
+        ease: 'Cubic.easeOut',
+        onComplete: () => {
+          // Flip to face-up on arrival
+          card.setTexture(`card_${cardData.suit}_${cardData.rank}`);
+          card.setHome(finalX, finalY, finalAngle);
+          card.setDepth(finalDepth);
+          // Arrival bounce
+          this.tweens.add({
+            targets: card,
+            scaleX: 1.12,
+            scaleY: 1.12,
+            duration: 60,
+            yoyo: true,
+            ease: 'Quad.easeOut',
+          });
+        },
+      });
 
       const ges = GameEventSystem.getInstance();
       const ctx = this.buildBaseContext() as CardDrawnContext;
       ctx.card = cardData;
+      Logger.card('摸牌', Logger.fmtCard(cardData));
       ges.emit(GAME_EVENTS.CARD_DRAWN, ctx);
     }
-    this.layoutHand();
+  }
+
+  /**
+   * Uniform fan arc, Balatro-style:
+   *   t ∈ [-1, +1]  (left → right)
+   *   angle = t × 10°          — symmetric fan rotation
+   *   y     = HAND_Y + t² × 22 — parabolic arc, centre highest
+   */
+  private handCardTransform(index: number, total: number): { x: number; y: number; angle: number } {
+    const totalWidth = (total - 1) * HAND_SPACING;
+    const startX = GAME_WIDTH / 2 - totalWidth / 2;
+    const x = startX + index * HAND_SPACING;
+    const t = total > 1 ? (index / (total - 1)) * 2 - 1 : 0;
+    const angle = t * 10;
+    const y = HAND_Y + t * t * 22;
+    return { x, y, angle };
   }
 
   private layoutHand() {
     const count = this.handCards.length;
     if (count === 0) return;
-    const totalWidth = (count - 1) * HAND_SPACING;
-    const startX = GAME_WIDTH / 2 - totalWidth / 2;
     for (let i = 0; i < count; i++) {
       const card = this.handCards[i];
-      const x = startX + i * HAND_SPACING;
-      card.setHome(x, HAND_Y);
-      card.setPosition(x, HAND_Y);
+      const { x, y, angle } = this.handCardTransform(i, count);
+      card.setHome(x, y, angle);
+      card.setPosition(x, y);
+      card.setAngle(angle);
       card.setDepth(10 + i);
     }
   }
@@ -260,6 +346,8 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private placeCard(card: Card, slot: BoardSlot) {
+    Logger.card('放置', `${Logger.fmtCard(card.cardData)} → Layer${slot.layerIndex} Slot${slot.slotIndex}`);
+
     card.location = 'board';
     card.disableDrag();
     card.setPosition(slot.x, slot.y);
@@ -273,6 +361,10 @@ export class BattleScene extends Phaser.Scene {
     if (idx >= 0) this.handCards.splice(idx, 1);
     this.boardCardObjects.set(`${slot.layerIndex}-${slot.slotIndex}`, card);
     this.layoutHand();
+
+    // 打印当前层牌面状态
+    const layerCards = this.layers[slot.layerIndex].pokerSlots.filter(Boolean) as CardData[];
+    Logger.card('当前层', `Layer${slot.layerIndex}: [${Logger.fmtCards(layerCards)}]  weight=${getLayerWeight(this.layers[slot.layerIndex])}`);
 
     const ges = GameEventSystem.getInstance();
     const ctx = this.buildBaseContext() as CardPlacedContext;
@@ -294,6 +386,11 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private executeCollapse(triggerLayer: number, destroyedIndices: number[], destroyedCards: CardData[]) {
+    Logger.collapse(
+      `触发层: Layer${triggerLayer}  销毁层: [${destroyedIndices.map(i => `Layer${i}`).join(', ')}]  ` +
+      `销毁卡牌: [${Logger.fmtCards(destroyedCards)}] (${destroyedCards.length} 张)`,
+    );
+
     this.isAnimating = true;
     this.cameras.main.shake(300, 0.015);
 
@@ -349,6 +446,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private onLevelStart() {
+    Logger.info(`━━ LEVEL_START: 关卡 ${this.level}  目标分 ${this.targetScore} ━━`);
     const ges = GameEventSystem.getInstance();
     const ctx = this.buildBaseContext() as LevelStartContext;
     ctx.targetScore = this.targetScore;
@@ -364,6 +462,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private onPlayerPlacing() {
+    Logger.info(`PLAYER_PLACING — 手牌: [${Logger.fmtCards(this.handCards.map(c => c.cardData))}]`);
     for (const card of this.handCards) {
       card.enableDrag();
     }
@@ -378,11 +477,15 @@ export class BattleScene extends Phaser.Scene {
   private onDiscardRequested() {
     if (this.phaseManager.getPhase() !== 'PLAYER_PLACING') return;
     if (this.isAnimating) return;
-    if (this.discardChances <= 0) return;
+    if (this.discardChances <= 0) {
+      Logger.warn('弃牌失败: 弃牌次数已用完');
+      return;
+    }
 
     const selected = this.handCards.filter(c => c.isSelected);
     if (selected.length === 0) return;
 
+    Logger.card('弃牌', `[${Logger.fmtCards(selected.map(c => c.cardData))}]  剩余弃牌次数: ${this.discardChances - 1}`);
     this.discardChances--;
 
     for (const card of selected) {
@@ -404,6 +507,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private async onScoring() {
+    Logger.score(`━━ SCORING 开始  计分机会剩余: ${this.scoreChances}  当前总分: ${this.levelScore} ━━`);
     this.isAnimating = true;
     for (const card of this.handCards) card.disableDrag();
 
@@ -417,10 +521,24 @@ export class BattleScene extends Phaser.Scene {
 
     for (let li = 0; li < this.layers.length; li++) {
       const cards = this.layers[li].pokerSlots.filter(Boolean) as CardData[];
-      if (cards.length === 0) continue;
+      if (cards.length === 0) {
+        Logger.score(`Layer${li}: 空层，跳过`);
+        continue;
+      }
 
       const hands = detectHandType(cards);
       const baseScore = calculateBaseScore(hands);
+      const handNames = hands.map(h => {
+        const labels: Record<string, string> = {
+          single: '单张', pair: '对子', three_of_a_kind: '三条',
+          straight: '顺子', flush: '同花', straight_flush: '同花顺',
+        };
+        return labels[h.type] || h.type;
+      }).join('+');
+
+      Logger.score(
+        `Layer${li}: [${Logger.fmtCards(cards)}]  手型=${handNames}  基础分=${baseScore}`,
+      );
 
       const layerCtx: ScoreLayerContext = {
         ...this.buildBaseContext(),
@@ -436,9 +554,13 @@ export class BattleScene extends Phaser.Scene {
 
       if (layerCtx.overrideLayerWeight !== null) {
         this.layers[li].overrideWeight = layerCtx.overrideLayerWeight;
+        Logger.score(`  Layer${li}: 承重覆盖 → ${layerCtx.overrideLayerWeight}`);
       }
 
       const layerScore = baseScore * layerCtx.scoreMultiplier + layerCtx.scoreBonusFlat;
+      Logger.score(
+        `  Layer${li}: ${baseScore} × ${layerCtx.scoreMultiplier.toFixed(2)} + ${layerCtx.scoreBonusFlat} = ${layerScore.toFixed(1)}`,
+      );
       totalGained += layerScore;
 
       const enhEffects: string[] = [];
@@ -453,16 +575,26 @@ export class BattleScene extends Phaser.Scene {
       await this.playLayerScoreAnimation(li, hands, layerScore, enhEffects);
     }
 
+    Logger.score(`本次计分合计: +${totalGained.toFixed(1)}  累计总分: ${this.levelScore} → ${this.levelScore + totalGained}`);
     this.levelScore += totalGained;
     this.registry.set('score', this.levelScore);
 
     const endCtx = this.buildBaseContext() as ScoreEndContext;
     endCtx.totalScoreGained = totalGained;
     ges.emit(GAME_EVENTS.SCORE_END, endCtx);
-    if (endCtx.sideEffects) this.applySideEffects(endCtx.sideEffects);
+    if (endCtx.sideEffects) {
+      Logger.effect(`SCORE_END sideEffects: ${JSON.stringify(endCtx.sideEffects)}`);
+      this.applySideEffects(endCtx.sideEffects);
+    }
 
     this.scoreChances--;
     this.registry.set('scoreChances', this.scoreChances);
+    Logger.score(`━━ SCORING 结束  计分机会剩余: ${this.scoreChances}  当前总分: ${this.levelScore} ━━`);
+
+    // 清除本轮计分产生的承重覆盖，避免影响下一轮放牌阶段的坍塌判定
+    for (const layer of this.layers) {
+      layer.overrideWeight = undefined;
+    }
 
     this.time.delayedCall(600, () => {
       this.isAnimating = false;
@@ -553,6 +685,10 @@ export class BattleScene extends Phaser.Scene {
     }
 
     const survived = this.levelScore >= this.targetScore;
+    Logger.info(
+      `━━ LEVEL_END: 关卡 ${this.level}  得分 ${this.levelScore} / 目标 ${this.targetScore}  ` +
+      `结果: ${survived ? '✓ 通关' : '✗ 失败'}  新基层承重: ${foundationValue} ━━`,
+    );
 
     const ges = GameEventSystem.getInstance();
     const ctx = this.buildBaseContext() as LevelEndContext;
@@ -591,6 +727,7 @@ export class BattleScene extends Phaser.Scene {
     this.registry.set('scoreChances', this.scoreChances);
     this.registry.set('discardChances', this.discardChances);
     this.registry.set('foundation', GameState.getInstance().foundation);
+    this.registry.set('drawPileCount', this.drawPile.length);
   }
 
   private buildBaseContext(): BaseEventContext {
@@ -610,26 +747,34 @@ export class BattleScene extends Phaser.Scene {
 
   private applySideEffects(effects: Array<{ type: string;[k: string]: unknown }>) {
     for (const effect of effects) {
+      Logger.effect(`执行副作用: ${effect.type}  参数: ${JSON.stringify(effect)}`);
       switch (effect.type) {
         case 'MODIFY_RANDOM_CARDS': {
           const count = (effect.count as number) || 1;
           const change = (effect.valueChange as number) || 0;
+          Logger.effect(`MODIFY_RANDOM_CARDS: 随机修改 ${count} 张棋盘牌  rank ${change >= 0 ? '+' : ''}${change}`);
           this.modifyRandomBoardCards(count, change);
           if (effect.recalculateCollapse) this.runCollapseCheck();
           break;
         }
         case 'MODIFY_TOTAL_SCORE': {
           const mult = (effect.multiplier as number) || 1;
+          const before = this.levelScore;
           this.levelScore = Math.floor(this.levelScore * mult);
+          Logger.effect(`MODIFY_TOTAL_SCORE: ${before} × ${mult} → ${this.levelScore}`);
           this.registry.set('score', this.levelScore);
           break;
         }
         case 'MODIFY_HAND_SIZE': {
           const delta = (effect.delta as number) || 0;
-          GameState.getInstance().handSize += delta;
+          const gs = GameState.getInstance();
+          const before = gs.handSize;
+          gs.handSize += delta;
+          Logger.effect(`MODIFY_HAND_SIZE: ${before} → ${gs.handSize}  (${delta >= 0 ? '+' : ''}${delta})`);
           if (effect.trimExcess) {
-            while (this.handCards.length > GameState.getInstance().handSize && this.handCards.length > 0) {
+            while (this.handCards.length > gs.handSize && this.handCards.length > 0) {
               const removed = this.handCards.pop()!;
+              Logger.card('手牌超限移除', Logger.fmtCard(removed.cardData));
               this.discardPile.push(removed.cardData);
               removed.destroy();
             }
@@ -640,9 +785,12 @@ export class BattleScene extends Phaser.Scene {
         case 'DESTROY_RANDOM_SLOT': {
           const li = (effect.layerIndex as number) ?? 2;
           const cnt = (effect.count as number) || 1;
+          Logger.effect(`DESTROY_RANDOM_SLOT: Layer${li} 销毁 ${cnt} 个格子`);
           this.destroyRandomSlots(li, cnt);
           break;
         }
+        default:
+          Logger.warn(`未知副作用类型: ${effect.type}`);
       }
     }
   }
@@ -657,8 +805,10 @@ export class BattleScene extends Phaser.Scene {
     }
     const shuffled = shuffle(allCards).slice(0, count);
     for (const entry of shuffled) {
+      const oldRank = entry.data.rank;
       const newRank = Math.max(2, Math.min(14, entry.data.rank + valueChange));
       entry.data.rank = newRank as CardData['rank'];
+      Logger.effect(`  修改 Layer${entry.li}-Slot${entry.si}: ${Logger.fmtCard({ suit: entry.data.suit, rank: oldRank })} → rank ${newRank}`);
       const key = `${entry.li}-${entry.si}`;
       const obj = this.boardCardObjects.get(key);
       if (obj) {
@@ -674,10 +824,12 @@ export class BattleScene extends Phaser.Scene {
       if (this.layers[layerIndex].pokerSlots[si]) occupied.push(si);
     }
     const toDestroy = shuffle(occupied).slice(0, count);
+    Logger.effect(`DESTROY_RANDOM_SLOT Layer${layerIndex}: 销毁格子 [${toDestroy.map(si => `Slot${si}`).join(', ')}]`);
     for (const si of toDestroy) {
       const key = `${layerIndex}-${si}`;
       const obj = this.boardCardObjects.get(key);
       if (obj) {
+        Logger.card('销毁', `${Logger.fmtCard(obj.cardData)} (Layer${layerIndex}-Slot${si})`);
         this.discardPile.push(obj.cardData);
         obj.destroy();
         this.boardCardObjects.delete(key);

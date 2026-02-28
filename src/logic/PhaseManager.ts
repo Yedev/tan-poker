@@ -1,4 +1,5 @@
 import type { GamePhase } from '../types/game';
+import { Logger } from '../utils/Logger';
 
 export class PhaseManager {
   private phase: GamePhase = 'LEVEL_START';
@@ -13,6 +14,8 @@ export class PhaseManager {
   }
 
   transitionTo(next: GamePhase): void {
+    const prev = this.phase;
+    Logger.phase(`${prev} → ${next}`);
     this.phase = next;
     this.onPhaseChange?.(next);
   }

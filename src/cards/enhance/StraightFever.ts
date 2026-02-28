@@ -2,6 +2,7 @@ import type { EnhanceCardDef } from '../../types/card';
 import type { RegisteredHandler } from '../../types/events';
 import type { ScoreLayerContext } from '../../types/events';
 import { GAME_EVENTS } from '../../events/GameEvents';
+import { Logger } from '../../utils/Logger';
 
 export const StraightFever: EnhanceCardDef = {
   id: 'enhance_straight_fever',
@@ -22,6 +23,9 @@ export const StraightFever: EnhanceCardDef = {
         );
         if (hasStraight) {
           ctx.scoreMultiplier += 2.0;
+          Logger.handler('顺子狂热', 'enhance', 0, true, `Layer${layerIndex}: 检测到顺子 → scoreMultiplier +2.0 (now ${ctx.scoreMultiplier.toFixed(1)})`);
+        } else {
+          Logger.handler('顺子狂热', 'enhance', 0, false, `Layer${layerIndex}: 无顺子，不触发`);
         }
       },
     }];
