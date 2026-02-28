@@ -171,6 +171,14 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private setupDragHandlers() {
+    this.input.on('gameobjectup', (_ptr: Phaser.Input.Pointer, obj: Phaser.GameObjects.GameObject) => {
+      if (this.isAnimating) return;
+      if (this.phaseManager.getPhase() !== 'PLAYER_PLACING') return;
+      if (obj instanceof Card && obj.location === 'hand' && !_ptr.getDistance()) {
+        obj.toggleSelect();
+      }
+    });
+
     this.input.on('dragstart', (_ptr: Phaser.Input.Pointer, obj: Phaser.GameObjects.GameObject) => {
       if (this.isAnimating) return;
       if (this.phaseManager.getPhase() !== 'PLAYER_PLACING') return;

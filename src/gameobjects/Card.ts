@@ -19,11 +19,11 @@ export class Card extends Phaser.GameObjects.Image {
   }
 
   enableDrag(): void {
-    this.input!.draggable = true;
+    this.scene.input.setDraggable(this, true);
   }
 
   disableDrag(): void {
-    if (this.input) this.input.draggable = false;
+    this.scene.input.setDraggable(this, false);
   }
 
   select(): void {

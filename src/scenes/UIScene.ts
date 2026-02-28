@@ -64,6 +64,24 @@ export class UIScene extends Phaser.Scene {
       this.phaseText.setText(v);
       this.onPhaseChange(v);
     });
+
+    this.refreshFromRegistry();
+  }
+
+  private refreshFromRegistry() {
+    const r = this.registry;
+    if (r.has('score')) this.scoreText.setText(`${Math.floor(r.get('score'))}`);
+    if (r.has('targetScore')) this.targetText.setText(`${r.get('targetScore')}`);
+    if (r.has('scoreChances')) this.chancesText.setText(`计分次数: ${r.get('scoreChances')}`);
+    if (r.has('discardChances')) this.discardText.setText(`弃牌次数: ${r.get('discardChances')}`);
+    if (r.has('foundation')) {
+      const f = r.get('foundation');
+      this.foundationText.setText(`基层承重: ${f === Infinity ? '∞' : f}`);
+    }
+    if (r.has('phase')) {
+      this.phaseText.setText(r.get('phase'));
+      this.onPhaseChange(r.get('phase'));
+    }
   }
 
   private onPhaseChange(phase: GamePhase) {
