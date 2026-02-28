@@ -1,60 +1,72 @@
 ---
 name: generate-sound-effect
-description: Generate game sound effects using the ElevenLabs Sound Effects API. Use when the user asks to generate, create, or produce sound effects, SFX, audio effects, or game audio.
+description: Generate game sound effects locally using waveform synthesis. No external API needed. Use when the user asks to generate, create, or produce sound effects, SFX, audio effects, or game audio.
 ---
 
 # Generate Sound Effects
 
+Pure Node.js waveform synthesizer — generates WAV files locally with zero dependencies and no API keys.
+
 ## Quick Start
 
-When the user asks to generate game sound effects, use the ElevenLabs Sound Effects API via the `Shell` tool to run the provided Node.js script.
-
-1.  **Formulate the prompt:** Construct a descriptive prompt in **English** based on the user's request. Include keywords for sound type, environment, intensity, and texture.
-2.  **Execute the Generation Script:** Use the `Shell` tool to run the script. You can optionally provide a filename and duration.
-
 ```bash
-# Basic usage (auto-generates filename like sfx_17390000000.mp3)
-node .cursor/skills/generate-sound-effect/scripts/generate.js "Laser gun firing three quick shots"
+# Generate a preset sound effect
+node .cursor/skills/generate-sound-effect/scripts/generate.js <preset> [filename] [duration]
 
-# Specify an output filename
-node .cursor/skills/generate-sound-effect/scripts/generate.js "Coins clinking and falling on a wooden table" "coin_drop.mp3"
-
-# Specify filename and duration (0.5-22 seconds)
-node .cursor/skills/generate-sound-effect/scripts/generate.js "Deep explosion with rumbling echo" "explosion.mp3" 5
+# List all available presets with descriptions
+node .cursor/skills/generate-sound-effect/scripts/generate.js --list
 ```
 
-3.  **Process Response:** The script automatically calls the API and saves the MP3 file to the `public/assets/` directory.
-4.  **Notify User:** Show the downloaded asset path to the user.
-
-## Prerequisites
-
-The `ELEVENLABS_API_KEY` environment variable must be set. Get a free API key at [elevenlabs.io](https://elevenlabs.io).
+## Examples
 
 ```bash
-export ELEVENLABS_API_KEY="your_key_here"
+# Laser shot
+node .cursor/skills/generate-sound-effect/scripts/generate.js laser "laser_shot.wav"
+
+# 2-second explosion
+node .cursor/skills/generate-sound-effect/scripts/generate.js explosion "boom.wav" 2
+
+# Card dealing sound
+node .cursor/skills/generate-sound-effect/scripts/generate.js card_flip "deal.wav"
+
+# Poker chips
+node .cursor/skills/generate-sound-effect/scripts/generate.js chip_stack "chips.wav"
 ```
 
-## Prompt Guidelines
+Output is saved to `public/assets/`.
 
-For the best results, prompts should be descriptive and specific in **English**:
+## Available Presets
 
-**Structure:** `[Sound source], [Action/behavior], [Environment/acoustics], [Texture/quality]`
+| Preset | Duration | Description |
+|--------|----------|-------------|
+| `laser` | 0.4s | Sci-fi laser shot — descending sawtooth sweep |
+| `explosion` | 1.5s | Heavy explosion with low rumble |
+| `coin` | 0.25s | Coin pickup — quick two-note arpeggio |
+| `jump` | 0.25s | Character jump — ascending sine sweep |
+| `hit` | 0.2s | Impact hit — noise burst with low thud |
+| `powerup` | 0.8s | Power-up — ascending sweep with vibrato shimmer |
+| `click` | 0.05s | UI menu click |
+| `beep` | 0.3s | Simple beep tone |
+| `whoosh` | 0.45s | Fast whoosh — filtered noise sweep |
+| `alert` | 0.6s | Two-tone alternating alert |
+| `card_flip` | 0.15s | Card flip / deal — short snappy tick |
+| `chip_stack` | 0.35s | Poker chips stacking — cascading clicks |
+| `win` | 1.0s | Victory fanfare — ascending bright arpeggio |
+| `lose` | 0.8s | Defeat — descending low tone |
+| `timer` | 0.15s | Timer tick — short clock tick |
 
-**Example Prompts:**
+## How It Works
 
-| Category | Prompt |
-|----------|--------|
-| Combat | `Sword slashing through air with a metallic ring` |
-| UI | `Soft chime notification sound, clean and digital` |
-| Environment | `Forest ambience with birds chirping and wind through leaves` |
-| Action | `Heavy footsteps on stone floor in a large echoing hall` |
-| Impact | `Wooden crate breaking apart on impact` |
-| Magic | `Mystical spell casting with rising energy and sparkle` |
+The script synthesizes audio using layered oscillators (sine, square, sawtooth, triangle, noise) with ADSR envelopes and frequency sweeps. Each preset defines one or more layers that are mixed together and encoded as a 44.1 kHz 16-bit mono WAV file.
 
-## Parameters
+## Adding New Presets
 
-| Parameter | Required | Default | Description |
-|-----------|----------|---------|-------------|
-| prompt | Yes | — | English description of the sound effect |
-| output_filename | No | `sfx_<timestamp>.mp3` | Output filename |
-| duration_seconds | No | Auto | Duration in seconds (0.5–22) |
+Edit the `PRESETS` object in `generate.js`. Each preset has:
+
+- `duration` — length in seconds
+- `layers[]` — array of oscillator layers, each with:
+  - `wave` — `sine` | `square` | `sawtooth` | `triangle` | `noise`
+  - `freq` — fixed Hz, `[start, end]` sweep, or `freqFn(t, progress)` function
+  - `volume` — 0–1
+  - `attack`, `decay`, `sustain`, `release` — ADSR envelope
+  - `vibrato` — optional `{ rate, depth }` for LFO modulation

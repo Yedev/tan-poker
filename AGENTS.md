@@ -20,8 +20,9 @@ This repository (`tan-poker`) is in early development. No application framework 
   ```
   Images are saved to `public/assets/`. See `.cursor/skills/generate-game-art/skill.md` for prompt guidelines.
 
-- **generate-sound-effect**: Generates game sound effects via the ElevenLabs API. Requires `ELEVENLABS_API_KEY` env var. Run from the workspace root:
+- **generate-sound-effect**: Generates game sound effects locally via waveform synthesis (no API key needed). Run from the workspace root:
   ```
-  node .cursor/skills/generate-sound-effect/scripts/generate.js "<English prompt>" [output_filename] [duration_seconds]
+  node .cursor/skills/generate-sound-effect/scripts/generate.js <preset> [filename] [duration]
+  node .cursor/skills/generate-sound-effect/scripts/generate.js --list
   ```
-  Audio files are saved to `public/assets/`. See `.cursor/skills/generate-sound-effect/skill.md` for prompt guidelines.
+  15 presets available including poker-specific ones (`card_flip`, `chip_stack`, `win`, `lose`). WAV files are saved to `public/assets/`. See `.cursor/skills/generate-sound-effect/skill.md` for the full preset table.
