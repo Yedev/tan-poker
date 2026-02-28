@@ -110,6 +110,18 @@ export class BattleScene extends Phaser.Scene {
       );
       this.enhanceSlots.push(eSlot);
 
+      const gs = GameState.getInstance();
+      const enhCard = gs.enhanceSlots[li];
+      if (enhCard) {
+        const texKey = enhCard.id;
+        if (this.textures.exists(texKey)) {
+          this.add.image(layout.enhanceSlot.x, layout.y, texKey).setDepth(2);
+        }
+        this.add.text(layout.enhanceSlot.x, layout.y + 32, enhCard.name, {
+          fontSize: '10px', color: '#ddcc88', fontFamily: 'sans-serif',
+        }).setOrigin(0.5).setDepth(3);
+      }
+
       const wt = this.add.text(layout.enhanceSlot.x - 40, layout.y - 8, '', {
         fontSize: '12px', color: '#aaaaaa', fontFamily: 'monospace',
       }).setOrigin(0.5).setDepth(5);
@@ -429,7 +441,16 @@ export class BattleScene extends Phaser.Scene {
       const layerScore = baseScore * layerCtx.scoreMultiplier + layerCtx.scoreBonusFlat;
       totalGained += layerScore;
 
-      await this.playLayerScoreAnimation(li, hands, layerScore);
+      const enhEffects: string[] = [];
+      const gs = GameState.getInstance();
+      const enh = gs.enhanceSlots[li];
+      if (enh) {
+        if (layerCtx.scoreMultiplier !== 1.0) enhEffects.push(`×${layerCtx.scoreMultiplier.toFixed(1)}`);
+        if (layerCtx.scoreBonusFlat > 0) enhEffects.push(`+${layerCtx.scoreBonusFlat}`);
+        if (layerCtx.overrideLayerWeight === 0) enhEffects.push('承重→0');
+      }
+
+      await this.playLayerScoreAnimation(li, hands, layerScore, enhEffects);
     }
 
     this.levelScore += totalGained;
@@ -456,7 +477,7 @@ export class BattleScene extends Phaser.Scene {
     });
   }
 
-  private playLayerScoreAnimation(layerIndex: number, hands: DetectedHand[], score: number): Promise<void> {
+  private playLayerScoreAnimation(layerIndex: number, hands: DetectedHand[], score: number, enhEffects: string[] = []): Promise<void> {
     return new Promise((resolve) => {
       const layout = BOARD_LAYOUT.layers[layerIndex];
       const centerX = layout.pokerSlots.reduce((s, p) => s + p.x, 0) / layout.pokerSlots.length;
@@ -487,6 +508,25 @@ export class BattleScene extends Phaser.Scene {
         fontSize: '18px', color: '#ffdd44', fontFamily: 'monospace',
         stroke: '#000000', strokeThickness: 3,
       }).setOrigin(0.5).setDepth(50);
+
+      if (enhEffects.length > 0) {
+        const gs = GameState.getInstance();
+        const enhName = gs.enhanceSlots[layerIndex]?.name ?? '';
+        const enhTxt = this.add.text(
+          layout.enhanceSlot.x, layout.y - 35,
+          `⚡${enhName} ${enhEffects.join(' ')}`,
+          { fontSize: '13px', color: '#ffaa22', fontFamily: 'sans-serif', stroke: '#000000', strokeThickness: 2 },
+        ).setOrigin(0.5).setDepth(51);
+
+        this.tweens.add({
+          targets: enhTxt,
+          y: enhTxt.y - 25,
+          alpha: 0,
+          duration: 900,
+          delay: 300,
+          onComplete: () => enhTxt.destroy(),
+        });
+      }
 
       this.tweens.add({
         targets: txt,

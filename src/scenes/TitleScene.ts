@@ -1,6 +1,9 @@
 import Phaser from 'phaser';
 import { GameState } from '../state/GameState';
 import { createDeck } from '../logic/deck';
+import { StraightFever } from '../cards/enhance/StraightFever';
+import { RoyalExclusive } from '../cards/enhance/RoyalExclusive';
+import { HollowBrick } from '../cards/enhance/HollowBrick';
 
 export class TitleScene extends Phaser.Scene {
   constructor() {
@@ -27,6 +30,7 @@ export class TitleScene extends Phaser.Scene {
       const gs = GameState.getInstance();
       gs.reset();
       gs.deck = createDeck();
+      gs.enhanceSlots = [StraightFever, RoyalExclusive, HollowBrick];
       this.scene.start('BattleScene', { level: 1 });
     });
 

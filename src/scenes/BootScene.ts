@@ -171,5 +171,34 @@ export class BootScene extends Phaser.Scene {
       ctx.fill();
       ct.refresh();
     }
+
+    this.generateEnhanceCardTextures();
+  }
+
+  private generateEnhanceCardTextures() {
+    const S = ENHANCE_SLOT_SIZE;
+    const enhanceCards: { key: string; label: string; color: string }[] = [
+      { key: 'enhance_straight_fever', label: '顺', color: '#2a7a5a' },
+      { key: 'enhance_hollow_brick',   label: '空', color: '#7a5a2a' },
+      { key: 'enhance_royal_exclusive', label: '皇', color: '#6a2a6a' },
+      { key: 'enhance_lucky_draw',     label: '幸', color: '#2a4a7a' },
+    ];
+    for (const { key, label, color } of enhanceCards) {
+      const ct = this.textures.createCanvas(key, S, S)!;
+      const ctx = ct.getContext();
+      ctx.fillStyle = color;
+      roundRect(ctx, 0, 0, S, S, 6);
+      ctx.fill();
+      ctx.strokeStyle = '#ddcc88';
+      ctx.lineWidth = 2;
+      roundRect(ctx, 2, 2, S - 4, S - 4, 5);
+      ctx.stroke();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 20px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(label, S / 2, S / 2);
+      ct.refresh();
+    }
   }
 }
