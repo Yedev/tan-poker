@@ -19,3 +19,9 @@ This repository (`tan-poker`) is in early development. No application framework 
   node .cursor/skills/generate-game-art/scripts/generate.js "<Chinese prompt>" [output_filename]
   ```
   Images are saved to `public/assets/`. See `.cursor/skills/generate-game-art/skill.md` for prompt guidelines.
+
+- **generate-sound-effect**: Generates game sound effects via the ElevenLabs API. Requires `ELEVENLABS_API_KEY` env var. Run from the workspace root:
+  ```
+  node .cursor/skills/generate-sound-effect/scripts/generate.js "<English prompt>" [output_filename] [duration_seconds]
+  ```
+  Audio files are saved to `public/assets/`. See `.cursor/skills/generate-sound-effect/skill.md` for prompt guidelines.
