@@ -16,6 +16,8 @@ import { detectHandType, calculateBaseScore } from '../logic/scoring';
 import { checkCollapse, getLayerWeight, wouldCollapse } from '../logic/collapse';
 import { Card } from '../gameobjects/Card';
 import { BoardSlot } from '../gameobjects/BoardSlot';
+import { EnhanceCard } from '../gameobjects/EnhanceCard';
+import { ChallengeCard } from '../gameobjects/ChallengeCard';
 import {
   BOARD_LAYOUT, HAND_Y, HAND_SPACING, GAME_WIDTH,
   LAYER_SLOT_COUNTS, SCORE_CHANCES_PER_LEVEL, DISCARD_CHANCES_PER_ROUND,
@@ -124,15 +126,9 @@ export class BattleScene extends Phaser.Scene {
       this.enhanceSlots.push(eSlot);
 
       const gs = GameState.getInstance();
-      const enhCard = gs.enhanceSlots[li];
-      if (enhCard) {
-        const texKey = enhCard.id;
-        if (this.textures.exists(texKey)) {
-          this.add.image(layout.enhanceSlot.x, layout.y, texKey).setDepth(2);
-        }
-        this.add.text(layout.enhanceSlot.x, layout.y + 32, enhCard.name, {
-          fontSize: '10px', color: '#ddcc88', fontFamily: 'sans-serif',
-        }).setOrigin(0.5).setDepth(3);
+      const enhCardDef = gs.enhanceSlots[li];
+      if (enhCardDef) {
+        new EnhanceCard(this, layout.enhanceSlot.x, layout.y, enhCardDef).setDepth(3);
       }
 
       const wt = this.add.text(layout.enhanceSlot.x - 40, layout.y - 8, '', {
@@ -146,6 +142,11 @@ export class BattleScene extends Phaser.Scene {
     this.add.text(640, 475, `基层承重: ${foundLabel}`, {
       fontSize: '14px', color: '#7a8a7a', fontFamily: 'monospace',
     }).setOrigin(0.5);
+
+    // 渲染挑战卡
+    gs.challengeCards.forEach((cardDef, index) => {
+      new ChallengeCard(this, 100, 150 + index * 100, cardDef).setDepth(3);
+    });
   }
 
   private initDrawPile() {

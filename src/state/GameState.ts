@@ -15,6 +15,7 @@ export class GameState {
 
   deck: CardData[] = [];
   enhanceSlots: (EnhanceCardDef | null)[] = [null, null, null];
+  enhanceInventory: EnhanceCardDef[] = [];
   challengeCards: ChallengeCardDef[] = [];
   consumeCards: ConsumeCardDef[] = [];
 
@@ -36,6 +37,7 @@ export class GameState {
     this.tempFoundationBonus = 0;
     this.deck = [];
     this.enhanceSlots = [null, null, null];
+    this.enhanceInventory = [];
     this.challengeCards = [];
     this.consumeCards = [];
   }
