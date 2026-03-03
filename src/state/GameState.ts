@@ -14,7 +14,7 @@ export class GameState {
   tempFoundationBonus = 0;
 
   deck: CardData[] = [];
-  enhanceSlots: (EnhanceCardDef | null)[] = [null, null, null];
+  enhanceSlots: (EnhanceCardDef | null)[] = [null, null, null, null];
   enhanceInventory: EnhanceCardDef[] = [];
   challengeCards: ChallengeCardDef[] = [];
   consumeCards: ConsumeCardDef[] = [];
@@ -36,7 +36,7 @@ export class GameState {
     this.foundation = Infinity;
     this.tempFoundationBonus = 0;
     this.deck = [];
-    this.enhanceSlots = [null, null, null];
+    this.enhanceSlots = [null, null, null, null];
     this.enhanceInventory = [];
     this.challengeCards = [];
     this.consumeCards = [];

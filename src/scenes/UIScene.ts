@@ -10,6 +10,7 @@ export class UIScene extends Phaser.Scene {
   private discardText!: Phaser.GameObjects.Text;
   private phaseText!: Phaser.GameObjects.Text;
   private foundationText!: Phaser.GameObjects.Text;
+  private goldText!: Phaser.GameObjects.Text;
   private scoreBtn!: Phaser.GameObjects.Image;
   private discardBtn!: Phaser.GameObjects.Image;
 
@@ -28,6 +29,7 @@ export class UIScene extends Phaser.Scene {
   private readonly _onFoundation = (_: unknown, v: number) => this.foundationText.setText(`基层承重: ${v === Infinity ? '∞' : v}`);
   private readonly _onPhase = (_: unknown, v: GamePhase) => { this.phaseText.setText(v); this.onPhaseChange(v); };
   private readonly _onDrawPile = (_: unknown, v: number) => this.onDeckCountChanged(v, true);
+  private readonly _onGold = (_: unknown, v: number) => this.goldText.setText(`金币: ${v}`);
 
   constructor() {
     super('UIScene');
@@ -45,6 +47,9 @@ export class UIScene extends Phaser.Scene {
     this.chancesText = this.add.text(200, 15, '计分次数: 3', ts);
     this.discardText = this.add.text(200, 40, '弃牌次数: 2', ts);
     this.foundationText = this.add.text(200, 65, '基层承重: ∞', { ...ts, fontSize: '14px', color: '#999999' });
+
+    this.add.text(420, 15, '金', { fontSize: '12px', color: '#888888', fontFamily: 'monospace' });
+    this.goldText = this.add.text(420, 32, '金币: 0', { fontSize: '18px', color: '#ffdd44', fontFamily: 'monospace' });
 
     this.phaseText = this.add.text(1260, 15, '', {
       fontSize: '12px', color: '#666666', fontFamily: 'monospace',
@@ -97,6 +102,7 @@ export class UIScene extends Phaser.Scene {
     this.registry.events.on('changedata-foundation', this._onFoundation, this);
     this.registry.events.on('changedata-phase', this._onPhase, this);
     this.registry.events.on('changedata-drawPileCount', this._onDrawPile, this);
+    this.registry.events.on('changedata-gold', this._onGold, this);
 
     // This is the correct Phaser cleanup hook — scene.events fires 'shutdown'
     // automatically when the scene is stopped, paused, or destroyed.
@@ -145,6 +151,9 @@ export class UIScene extends Phaser.Scene {
     if (r.has('drawPileCount')) {
       this.onDeckCountChanged(r.get('drawPileCount'), false);
     }
+    if (r.has('gold')) {
+      this.goldText.setText(`金币: ${r.get('gold')}`);
+    }
   }
 
   private onPhaseChange(phase: GamePhase) {
@@ -168,5 +177,6 @@ export class UIScene extends Phaser.Scene {
     this.registry.events.off('changedata-foundation', this._onFoundation, this);
     this.registry.events.off('changedata-phase', this._onPhase, this);
     this.registry.events.off('changedata-drawPileCount', this._onDrawPile, this);
+    this.registry.events.off('changedata-gold', this._onGold, this);
   }
 }

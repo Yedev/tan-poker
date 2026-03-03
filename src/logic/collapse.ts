@@ -29,7 +29,7 @@ export function checkCollapse(layers: Layer[], foundation: number): CollapseResu
       return {
         collapsed: true,
         triggerLayerIndex: -1,
-        destroyedLayerIndices: [0, 1, 2],
+        destroyedLayerIndices: layers.map((_, i) => i),
         destroyedCards: layers.flatMap(l => l.pokerSlots.filter(Boolean) as CardData[]),
       };
     }
