@@ -54,7 +54,8 @@ export const BOARD_LAYOUT = {
 };
 
 export const HAND_Y = 600;
-export const HAND_SPACING = 50;
+export const HAND_SPACING = 68;
+export const HAND_CARD_SCALE = 1.4;
 
 // Deck pile display position (bottom-right area)
 export const DECK_PILE_X = 1070;

@@ -10,6 +10,8 @@ export class Card extends Phaser.GameObjects.Image {
   /** Per-card random angle offset assigned once on draw, persists across re-layouts. */
   public angleJitter = 0;
   public location: 'hand' | 'board' | 'discard' = 'hand';
+  public homeDepth = 10;
+  private floatTween?: Phaser.Tweens.Tween;
 
   constructor(scene: Phaser.Scene, x: number, y: number, cardData: CardData) {
     super(scene, x, y, `card_${cardData.suit}_${cardData.rank}`);
@@ -19,6 +21,17 @@ export class Card extends Phaser.GameObjects.Image {
 
     this.setInteractive({ useHandCursor: true, draggable: false });
     scene.add.existing(this);
+
+    this.on('pointerover', () => {
+      if (this.location !== 'hand' || this.isSelected) return;
+      this.stopFloat();
+      this.y = this.originalY - 10;
+    });
+    this.on('pointerout', () => {
+      if (this.location !== 'hand' || this.isSelected) return;
+      this.y = this.originalY;
+      this.startFloat();
+    });
   }
 
   enableDrag(): void {
@@ -31,16 +44,14 @@ export class Card extends Phaser.GameObjects.Image {
 
   select(): void {
     this.isSelected = true;
-    this.setTint(0x8888ff);
-    this.y = this.originalY - 20;
-    this.setAngle(0); // straighten when lifted
+    this.stopFloat();
+    this.y = this.originalY - 35;
   }
 
   deselect(): void {
     this.isSelected = false;
-    this.clearTint();
     this.y = this.originalY;
-    this.setAngle(this.originalAngle);
+    this.startFloat();
   }
 
   toggleSelect(): void {
@@ -58,5 +69,28 @@ export class Card extends Phaser.GameObjects.Image {
     this.x = this.originalX;
     this.y = this.originalY;
     this.setAngle(this.originalAngle);
+    this.startFloat();
+  }
+
+  startFloat(delay = 0): void {
+    this.stopFloat();
+    const baseY = this.originalY;
+    this.floatTween = this.scene.tweens.add({
+      targets: this,
+      y: baseY - 4,
+      duration: 1400,
+      delay,
+      ease: 'Sine.easeInOut',
+      yoyo: true,
+      repeat: -1,
+    });
+  }
+
+  stopFloat(): void {
+    if (this.floatTween) {
+      this.floatTween.stop();
+      this.floatTween = undefined;
+      this.y = this.originalY;
+    }
   }
 }
