@@ -9,7 +9,7 @@ export const SLOT_WIDTH = 72;
 export const SLOT_HEIGHT = 98;
 export const ENHANCE_SLOT_SIZE = 52;
 
-export const DEFAULT_HAND_SIZE = 5;
+export const DEFAULT_HAND_SIZE = 8;
 export const SCORE_CHANCES_PER_LEVEL = 3;
 export const DISCARD_CHANCES_PER_ROUND = 2;
 
@@ -26,24 +26,29 @@ export function getTargetScore(level: number): number {
   return Math.floor(50 * Math.pow(1.6, level - 1));
 }
 
-export const LAYER_SLOT_COUNTS = [1, 2, 3];
+export const LAYER_SLOT_COUNTS = [1, 2, 3, 4];
 
 export const BOARD_LAYOUT = {
   layers: [
     {
-      y: 150,
+      y: 120,
       pokerSlots: [{ x: 640 }],
       enhanceSlot: { x: 530 },
     },
     {
-      y: 280,
+      y: 230,
       pokerSlots: [{ x: 590 }, { x: 690 }],
       enhanceSlot: { x: 480 },
     },
     {
-      y: 410,
+      y: 340,
       pokerSlots: [{ x: 540 }, { x: 640 }, { x: 740 }],
       enhanceSlot: { x: 430 },
+    },
+    {
+      y: 450,
+      pokerSlots: [{ x: 490 }, { x: 590 }, { x: 690 }, { x: 790 }],
+      enhanceSlot: { x: 380 },
     },
   ],
 };

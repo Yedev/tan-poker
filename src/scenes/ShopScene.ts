@@ -3,7 +3,7 @@ import { GameState } from '../state/GameState';
 import { AllEnhanceCards } from '../cards/enhance';
 import { EnhanceCard } from '../gameobjects/EnhanceCard';
 import type { EnhanceCardDef } from '../types/card';
-import { ENHANCE_SLOT_SIZE } from '../config';
+import { ENHANCE_SLOT_SIZE, BOARD_LAYOUT } from '../config';
 import { Logger } from '../utils/Logger';
 
 const INVENTORY_SIZE = 3;
@@ -67,15 +67,18 @@ export class ShopScene extends Phaser.Scene {
   }
 
   private createLayerSlots() {
+    const layerCount = BOARD_LAYOUT.layers.length;
     this.add.text(640, 140, '已装备增强 (拖拽调整层)', { fontSize: '18px', color: '#aaaaaa', fontFamily: 'sans-serif' }).setOrigin(0.5);
-    const startX = 640 - 150;
-    for (let i = 0; i < 3; i++) {
-      const x = startX + i * 150;
+    const slotSpacing = Math.min(150, 560 / layerCount);
+    const totalWidth = (layerCount - 1) * slotSpacing;
+    const startX = 640 - totalWidth / 2;
+    for (let i = 0; i < layerCount; i++) {
+      const x = startX + i * slotSpacing;
       const y = 210;
-      
+
       this.add.image(x, y, 'enhance_slot_bg');
       this.add.text(x, y + 45, `第 ${i} 层`, { fontSize: '14px', color: '#888888' }).setOrigin(0.5);
-      
+
       const zone = this.add.zone(x, y, ENHANCE_SLOT_SIZE + 20, ENHANCE_SLOT_SIZE + 20).setRectangleDropZone(ENHANCE_SLOT_SIZE + 20, ENHANCE_SLOT_SIZE + 20);
       zone.setData('type', 'layer');
       zone.setData('index', i);

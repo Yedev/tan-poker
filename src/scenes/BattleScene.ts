@@ -21,7 +21,7 @@ import { ChallengeCard } from '../gameobjects/ChallengeCard';
 import {
   BOARD_LAYOUT, HAND_Y, HAND_SPACING, GAME_WIDTH,
   LAYER_SLOT_COUNTS, SCORE_CHANCES_PER_LEVEL, DISCARD_CHANCES_PER_ROUND,
-  DECK_PILE_X, DECK_PILE_Y,
+  DECK_PILE_X, DECK_PILE_Y, SLOT_HEIGHT,
   getTargetScore,
 } from '../config';
 import { Logger } from '../utils/Logger';
@@ -43,6 +43,9 @@ export class BattleScene extends Phaser.Scene {
   private isAnimating = false;
 
   private weightTexts: Phaser.GameObjects.Text[] = [];
+
+  // Layer highlight rectangles (shown when cards are selected)
+  private layerHighlightRects: Phaser.GameObjects.Rectangle[] = [];
 
   constructor() {
     super('BattleScene');
@@ -83,8 +86,6 @@ export class BattleScene extends Phaser.Scene {
 
     // syncRegistry must run BEFORE scene.launch('UIScene') so that when UIScene
     // boots synchronously and calls refreshFromRegistry(), all values are ready.
-    // Launching AFTER prevents UIScene's event handlers from firing on a
-    // partially-initialised Text canvas (which causes the null drawImage crash).
     this.syncRegistry();
     this.scene.launch('UIScene');
 
@@ -100,9 +101,10 @@ export class BattleScene extends Phaser.Scene {
     this.layers = [];
     this.pokerSlots = [];
     this.enhanceSlots = [];
-    this.handCards = [];        // clear stale Card refs from previous scene run
+    this.handCards = [];
     this.boardCardObjects.clear();
     this.weightTexts = [];
+    this.layerHighlightRects = [];
 
     for (let li = 0; li < BOARD_LAYOUT.layers.length; li++) {
       const layout = BOARD_LAYOUT.layers[li];
@@ -135,11 +137,39 @@ export class BattleScene extends Phaser.Scene {
         fontSize: '12px', color: '#aaaaaa', fontFamily: 'monospace',
       }).setOrigin(0.5).setDepth(5);
       this.weightTexts.push(wt);
+
+      // Layer highlight rectangle for click-to-place interaction
+      const leftX = layout.pokerSlots[0].x - 46;
+      const rightX = layout.pokerSlots[layout.pokerSlots.length - 1].x + 46;
+      const rectW = rightX - leftX;
+      const rectCX = (leftX + rightX) / 2;
+      const rect = this.add.rectangle(rectCX, layout.y, rectW, SLOT_HEIGHT + 16, 0x00ff88, 0)
+        .setStrokeStyle(2, 0x00ff88, 0)
+        .setAlpha(0)
+        .setDepth(1);
+      rect.setData('layerIndex', li);
+      rect.setInteractive();
+      rect.on('pointerup', (_ptr: Phaser.Input.Pointer) => {
+        if (!_ptr.getDistance()) {
+          this.onLayerClicked(li);
+        }
+      });
+      rect.on('pointerover', () => {
+        const selected = this.handCards.filter(c => c.isSelected);
+        const hasEmpty = this.pokerSlots[li].some(s => !s.isOccupied);
+        if (selected.length > 0 && hasEmpty) {
+          rect.setFillStyle(0x00ff88, 0.25);
+        }
+      });
+      rect.on('pointerout', () => {
+        rect.setFillStyle(0x00ff88, 0);
+      });
+      this.layerHighlightRects.push(rect);
     }
 
     const gs = GameState.getInstance();
     const foundLabel = gs.foundation === Infinity ? '∞' : `${gs.foundation}`;
-    this.add.text(640, 475, `基层承重: ${foundLabel}`, {
+    this.add.text(640, 490, `基层承重: ${foundLabel}`, {
       fontSize: '14px', color: '#7a8a7a', fontFamily: 'monospace',
     }).setOrigin(0.5);
 
@@ -176,7 +206,7 @@ export class BattleScene extends Phaser.Scene {
     Logger.card('补手牌', `需要 ${need} 张 (手牌上限 ${gs.handSize}，当前 ${this.handCards.length})`);
     const drawn = this.drawCards(need);
 
-    // Sync deck count after drawing (includes any discard-pile reshuffle)
+    // Sync deck count after drawing
     this.registry.set('drawPileCount', this.drawPile.length);
 
     // Pre-calculate final hand positions for ALL cards (existing + new)
@@ -199,7 +229,6 @@ export class BattleScene extends Phaser.Scene {
       const { x: finalX, y: finalY, angle: finalAngle } = this.handCardTransform(existingCount + i, totalCount);
       const finalDepth = 10 + existingCount + i;
 
-      // Start at deck pile position (card_back visible, face down)
       const card = new Card(this, DECK_PILE_X, DECK_PILE_Y, cardData);
       card.setTexture('card_back');
 
@@ -216,11 +245,9 @@ export class BattleScene extends Phaser.Scene {
         delay: i * 75,
         ease: 'Cubic.easeOut',
         onComplete: () => {
-          // Flip to face-up on arrival
           card.setTexture(`card_${cardData.suit}_${cardData.rank}`);
           card.setHome(finalX, finalY, finalAngle);
           card.setDepth(finalDepth);
-          // Arrival bounce
           this.tweens.add({
             targets: card,
             scaleX: 1.12,
@@ -269,12 +296,57 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
+  // ── Layer highlight (click-to-place) ──
+
+  /**
+   * Update layer highlight rectangles visibility based on current hand selection.
+   * When cards are selected and a layer has available slots, highlight that layer.
+   */
+  private updateLayerHighlights() {
+    const selected = this.handCards.filter(c => c.isSelected);
+    const hasSelection = selected.length > 0;
+    const canInteract = hasSelection && !this.isAnimating && this.phaseManager.getPhase() === 'PLAYER_PLACING';
+
+    for (let li = 0; li < this.layerHighlightRects.length; li++) {
+      const hasEmptySlot = this.pokerSlots[li].some(s => !s.isOccupied);
+      const show = canInteract && hasEmptySlot;
+      const rect = this.layerHighlightRects[li];
+      rect.setStrokeStyle(2, 0x00ff88, show ? 1 : 0);
+      rect.setFillStyle(0x00ff88, 0);
+      if (show) {
+        rect.setInteractive();
+      } else {
+        rect.disableInteractive();
+      }
+    }
+  }
+
+  /**
+   * Place the currently selected hand cards into the first available slots of layerIndex.
+   */
+  private onLayerClicked(layerIndex: number) {
+    if (this.isAnimating) return;
+    if (this.phaseManager.getPhase() !== 'PLAYER_PLACING') return;
+
+    const selected = this.handCards.filter(c => c.isSelected);
+    if (selected.length === 0) return;
+
+    const emptySlots = this.pokerSlots[layerIndex].filter(s => !s.isOccupied);
+    if (emptySlots.length === 0) return;
+
+    const toPlace = selected.slice(0, emptySlots.length);
+    for (let i = 0; i < toPlace.length; i++) {
+      this.placeCard(toPlace[i], emptySlots[i]);
+    }
+  }
+
   private setupDragHandlers() {
     this.input.on('gameobjectup', (_ptr: Phaser.Input.Pointer, obj: Phaser.GameObjects.GameObject) => {
       if (this.isAnimating) return;
       if (this.phaseManager.getPhase() !== 'PLAYER_PLACING') return;
       if (obj instanceof Card && obj.location === 'hand' && !_ptr.getDistance()) {
         obj.toggleSelect();
+        this.updateLayerHighlights();
       }
     });
 
@@ -284,6 +356,7 @@ export class BattleScene extends Phaser.Scene {
       if (obj instanceof Card && obj.location === 'hand') {
         obj.setDepth(100);
         obj.deselect();
+        this.updateLayerHighlights();
       }
     });
 
@@ -317,7 +390,7 @@ export class BattleScene extends Phaser.Scene {
         slot.setHighlight('normal');
         for (const row of this.pokerSlots) {
           for (const s of row) {
-            if (s !== slot) s.setHighlight(s.isOccupied ? 'normal' : 'normal');
+            if (s !== slot) s.setHighlight('normal');
           }
         }
       }
@@ -337,6 +410,7 @@ export class BattleScene extends Phaser.Scene {
       if (!dropped && obj instanceof Card && obj.location === 'hand') {
         obj.returnHome();
         obj.setDepth(10);
+        this.updateLayerHighlights();
       }
     });
   }
@@ -352,6 +426,7 @@ export class BattleScene extends Phaser.Scene {
     card.location = 'board';
     card.disableDrag();
     card.setPosition(slot.x, slot.y);
+    card.setAngle(0);
     card.setDepth(5);
     slot.isOccupied = true;
     slot.setHighlight('normal');
@@ -375,6 +450,7 @@ export class BattleScene extends Phaser.Scene {
     ges.emit(GAME_EVENTS.CARD_PLACED, ctx);
 
     this.updateWeightDisplay();
+    this.updateLayerHighlights();
     this.runCollapseCheck();
   }
 
@@ -425,6 +501,7 @@ export class BattleScene extends Phaser.Scene {
     this.time.delayedCall(500, () => {
       this.isAnimating = false;
       this.updateWeightDisplay();
+      this.updateLayerHighlights();
     });
   }
 
@@ -467,6 +544,7 @@ export class BattleScene extends Phaser.Scene {
     for (const card of this.handCards) {
       card.enableDrag();
     }
+    this.updateLayerHighlights();
   }
 
   private onScoreRequested() {
@@ -505,11 +583,13 @@ export class BattleScene extends Phaser.Scene {
     for (const card of this.handCards) card.enableDrag();
 
     this.registry.set('discardChances', this.discardChances);
+    this.updateLayerHighlights();
   }
 
   private async onScoring() {
     Logger.score(`━━ SCORING 开始  计分机会剩余: ${this.scoreChances}  当前总分: ${this.levelScore} ━━`);
     this.isAnimating = true;
+    this.updateLayerHighlights(); // hide highlights during scoring
     for (const card of this.handCards) card.disableDrag();
 
     const ges = GameEventSystem.getInstance();
@@ -579,6 +659,16 @@ export class BattleScene extends Phaser.Scene {
     Logger.score(`本次计分合计: +${totalGained.toFixed(1)}  累计总分: ${this.levelScore} → ${this.levelScore + totalGained}`);
     this.levelScore += totalGained;
     this.registry.set('score', this.levelScore);
+
+    // Award gold based on score earned this round
+    const gs = GameState.getInstance();
+    const goldEarned = Math.floor(totalGained / 10);
+    if (goldEarned > 0) {
+      gs.gold += goldEarned;
+      this.registry.set('gold', gs.gold);
+      Logger.info(`金币获得: +${goldEarned}  (共 ${gs.gold})`);
+      this.playGoldEarnedAnimation(goldEarned);
+    }
 
     const endCtx = this.buildBaseContext() as ScoreEndContext;
     endCtx.totalScoreGained = totalGained;
@@ -675,6 +765,22 @@ export class BattleScene extends Phaser.Scene {
     });
   }
 
+  private playGoldEarnedAnimation(amount: number) {
+    const txt = this.add.text(420, 55, `+${amount} 金币`, {
+      fontSize: '16px', color: '#ffdd44', fontFamily: 'monospace',
+      stroke: '#000000', strokeThickness: 2,
+    }).setOrigin(0.5).setDepth(50);
+
+    this.tweens.add({
+      targets: txt,
+      y: txt.y - 25,
+      alpha: 0,
+      duration: 900,
+      delay: 200,
+      onComplete: () => txt.destroy(),
+    });
+  }
+
   private onLevelEnd() {
     const gs = GameState.getInstance();
 
@@ -702,6 +808,14 @@ export class BattleScene extends Phaser.Scene {
     gs.score += this.levelScore;
     gs.foundation = foundationValue > 0 ? foundationValue : 1;
 
+    // Bonus gold for completing a level
+    if (survived) {
+      const bonusGold = 5 + this.level * 2;
+      gs.gold += bonusGold;
+      this.registry.set('gold', gs.gold);
+      Logger.info(`关卡通关奖励金币: +${bonusGold}  (共 ${gs.gold})`);
+    }
+
     this.time.delayedCall(800, () => {
       this.cleanupScene();
       if (survived) {
@@ -723,12 +837,14 @@ export class BattleScene extends Phaser.Scene {
   // ── Helpers ──
 
   private syncRegistry() {
+    const gs = GameState.getInstance();
     this.registry.set('score', this.levelScore);
     this.registry.set('targetScore', this.targetScore);
     this.registry.set('scoreChances', this.scoreChances);
     this.registry.set('discardChances', this.discardChances);
-    this.registry.set('foundation', GameState.getInstance().foundation);
+    this.registry.set('foundation', gs.foundation);
     this.registry.set('drawPileCount', this.drawPile.length);
+    this.registry.set('gold', gs.gold);
   }
 
   private buildBaseContext(): BaseEventContext {
