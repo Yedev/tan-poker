@@ -4,6 +4,7 @@ import { createDeck } from '../logic/deck';
 import { StraightFever } from '../cards/enhance/StraightFever';
 import { RoyalExclusive } from '../cards/enhance/RoyalExclusive';
 import { HollowBrick } from '../cards/enhance/HollowBrick';
+import { CARD_WIDTH, CARD_HEIGHT, GAME_WIDTH, GAME_HEIGHT } from '../config';
 
 export class TitleScene extends Phaser.Scene {
   constructor() {
@@ -23,7 +24,7 @@ export class TitleScene extends Phaser.Scene {
       fontSize: '16px', color: '#6a7a8a', fontFamily: 'sans-serif',
     }).setOrigin(0.5);
 
-    const btn = this.add.image(640, 450, 'btn_start').setInteractive({ useHandCursor: true });
+    const btn = this.add.image(640, 450, 'btn_start').setDisplaySize(160, 50).setInteractive({ useHandCursor: true });
     btn.on('pointerover', () => btn.setTint(0xccccff));
     btn.on('pointerout', () => btn.clearTint());
     btn.on('pointerup', () => {
@@ -44,8 +45,20 @@ export class TitleScene extends Phaser.Scene {
     demoCards.forEach((c, i) => {
       const x = 440 + i * 80;
       const img = this.add.image(x, 560, `card_${c.suit}_${c.rank}`);
+      img.setDisplaySize(CARD_WIDTH, CARD_HEIGHT);
       img.setAngle(-10 + i * 5);
       img.setAlpha(0.6);
     });
+
+    this.scale.on('resize', this.applyResponsiveScale, this);
+    this.events.once('shutdown', () => this.scale.off('resize', this.applyResponsiveScale, this));
+    this.applyResponsiveScale();
+  }
+
+  private applyResponsiveScale() {
+    if (!this.cameras?.main) return;
+    const dpr = Math.round(window.devicePixelRatio || 1);
+    this.cameras.main.setZoom(dpr);
+    this.cameras.main.centerOn(GAME_WIDTH / 2, GAME_HEIGHT / 2);
   }
 }

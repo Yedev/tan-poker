@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import type { CardData } from '../types/card';
+import { CARD_WIDTH, CARD_HEIGHT } from '../config';
 
 export class Card extends Phaser.GameObjects.Image {
   public cardData: CardData;
@@ -19,6 +20,7 @@ export class Card extends Phaser.GameObjects.Image {
     this.originalX = x;
     this.originalY = y;
 
+    this.setDisplaySize(CARD_WIDTH, CARD_HEIGHT);
     this.setInteractive({ useHandCursor: true, draggable: false });
     scene.add.existing(this);
 

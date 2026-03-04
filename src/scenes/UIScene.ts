@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type { GamePhase } from '../types/game';
 import { EventBus } from '../events/EventBus';
-import { DECK_PILE_X, DECK_PILE_Y } from '../config';
+import { DECK_PILE_X, DECK_PILE_Y, CARD_WIDTH, CARD_HEIGHT, GAME_WIDTH, GAME_HEIGHT } from '../config';
 
 export class UIScene extends Phaser.Scene {
   private scoreText!: Phaser.GameObjects.Text;
@@ -56,12 +56,14 @@ export class UIScene extends Phaser.Scene {
     }).setOrigin(1, 0);
 
     this.scoreBtn = this.add.image(1180, 580, 'btn_score')
+      .setDisplaySize(110, 40)
       .setInteractive({ useHandCursor: true })
       .on('pointerup', () => EventBus.emit('ui:score-requested'))
       .on('pointerover', () => this.scoreBtn.setTint(0xaaffaa))
       .on('pointerout', () => this.scoreBtn.clearTint());
 
     this.discardBtn = this.add.image(1180, 630, 'btn_discard')
+      .setDisplaySize(110, 40)
       .setInteractive({ useHandCursor: true })
       .on('pointerup', () => EventBus.emit('ui:discard-requested'))
       .on('pointerover', () => this.discardBtn.setTint(0xffaaaa))
@@ -73,9 +75,9 @@ export class UIScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     // Stacked card-back images (depth illusion)
-    this.deckShadow1 = this.add.image(DECK_PILE_X - 4, DECK_PILE_Y - 4, 'card_back').setAlpha(0.35);
-    this.deckShadow2 = this.add.image(DECK_PILE_X - 2, DECK_PILE_Y - 2, 'card_back').setAlpha(0.6);
-    this.deckTopCard = this.add.image(DECK_PILE_X, DECK_PILE_Y, 'card_back');
+    this.deckShadow1 = this.add.image(DECK_PILE_X - 4, DECK_PILE_Y - 4, 'card_back').setDisplaySize(CARD_WIDTH, CARD_HEIGHT).setAlpha(0.35);
+    this.deckShadow2 = this.add.image(DECK_PILE_X - 2, DECK_PILE_Y - 2, 'card_back').setDisplaySize(CARD_WIDTH, CARD_HEIGHT).setAlpha(0.6);
+    this.deckTopCard = this.add.image(DECK_PILE_X, DECK_PILE_Y, 'card_back').setDisplaySize(CARD_WIDTH, CARD_HEIGHT);
 
     // Count badge below the pile
     this.deckCountText = this.add.text(DECK_PILE_X, DECK_PILE_Y + 54, '×0', {
@@ -108,7 +110,18 @@ export class UIScene extends Phaser.Scene {
     // automatically when the scene is stopped, paused, or destroyed.
     this.events.once('shutdown', this.removeRegistryListeners, this);
 
+    this.scale.on('resize', this.applyResponsiveScale, this);
+    this.events.once('shutdown', () => this.scale.off('resize', this.applyResponsiveScale, this));
+    this.applyResponsiveScale();
+
     this.refreshFromRegistry();
+  }
+
+  private applyResponsiveScale() {
+    if (!this.cameras?.main) return;
+    const dpr = Math.round(window.devicePixelRatio || 1);
+    this.cameras.main.setZoom(dpr);
+    this.cameras.main.centerOn(GAME_WIDTH / 2, GAME_HEIGHT / 2);
   }
 
   private onDeckCountChanged(count: number, animate: boolean) {
@@ -122,11 +135,12 @@ export class UIScene extends Phaser.Scene {
 
     if (animate && hasCards) {
       // Pop animation on the top card to signal a draw happened
+      const dpr = Math.round(window.devicePixelRatio || 1);
       this.tweens.killTweensOf(this.deckTopCard);
       this.tweens.add({
         targets: this.deckTopCard,
-        scaleX: 0.88,
-        scaleY: 0.88,
+        scaleX: 0.88 / dpr,
+        scaleY: 0.88 / dpr,
         duration: 70,
         yoyo: true,
         ease: 'Quad.easeOut',

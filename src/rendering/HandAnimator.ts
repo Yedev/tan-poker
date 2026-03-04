@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type { CardData } from '../types/card';
 import { Card } from '../gameobjects/Card';
-import { HAND_Y, HAND_SPACING, HAND_CARD_SCALE, GAME_WIDTH } from '../config';
+import { HAND_Y, HAND_SPACING, HAND_CARD_SCALE, GAME_WIDTH, CARD_WIDTH, CARD_HEIGHT } from '../config';
 
 export class HandAnimator {
   handCards: Card[] = [];
@@ -40,25 +40,27 @@ export class HandAnimator {
       card.setDepth(finalDepth);
       this.handCards.push(card);
 
+      const dpr = Math.round(window.devicePixelRatio || 1);
       this.scene.tweens.add({
         targets: card,
         x: finalX,
         y: finalY,
         angle: finalAngle,
-        scaleX: HAND_CARD_SCALE,
-        scaleY: HAND_CARD_SCALE,
+        scaleX: HAND_CARD_SCALE / dpr,
+        scaleY: HAND_CARD_SCALE / dpr,
         duration: 260,
         delay: i * 75,
         ease: 'Cubic.easeOut',
         onComplete: () => {
           card.setTexture(`card_${cardData.suit}_${cardData.rank}`);
+          card.setDisplaySize(HAND_CARD_SCALE * CARD_WIDTH, HAND_CARD_SCALE * CARD_HEIGHT);
           card.setHome(finalX, finalY, finalAngle);
           card.homeDepth = finalDepth;
           card.setDepth(finalDepth);
           this.scene.tweens.add({
             targets: card,
-            scaleX: HAND_CARD_SCALE * 1.08,
-            scaleY: HAND_CARD_SCALE * 1.08,
+            scaleX: HAND_CARD_SCALE * 1.08 / dpr,
+            scaleY: HAND_CARD_SCALE * 1.08 / dpr,
             duration: 60,
             yoyo: true,
             ease: 'Quad.easeOut',

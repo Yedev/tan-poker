@@ -21,7 +21,7 @@ import { EnhanceCard } from '../gameobjects/EnhanceCard';
 import { ChallengeCard } from '../gameobjects/ChallengeCard';
 import {
   BOARD_LAYOUT, LAYER_SLOT_COUNTS, SCORE_CHANCES_PER_LEVEL, DISCARD_CHANCES_PER_ROUND,
-  DECK_PILE_X, DECK_PILE_Y, SLOT_HEIGHT,
+  DECK_PILE_X, DECK_PILE_Y, SLOT_HEIGHT, GAME_WIDTH, GAME_HEIGHT,
   getTargetScore,
 } from '../config';
 import { Logger } from '../utils/Logger';
@@ -88,6 +88,17 @@ export class BattleScene extends Phaser.Scene {
     });
 
     this.phaseManager.transitionTo('LEVEL_START');
+
+    this.scale.on('resize', this.applyResponsiveScale, this);
+    this.events.once('shutdown', () => this.scale.off('resize', this.applyResponsiveScale, this));
+    this.applyResponsiveScale();
+  }
+
+  private applyResponsiveScale() {
+    if (!this.cameras?.main) return;
+    const dpr = Math.round(window.devicePixelRatio || 1);
+    this.cameras.main.setZoom(dpr);
+    this.cameras.main.centerOn(GAME_WIDTH / 2, GAME_HEIGHT / 2);
   }
 
   private initBoard() {
@@ -211,6 +222,8 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private setupDragHandlers() {
+    this.input.dragDistanceThreshold = 8;
+
     this.input.on('gameobjectup', (_ptr: Phaser.Input.Pointer, obj: Phaser.GameObjects.GameObject) => {
       if (this.isAnimating) return;
       if (this.phaseManager.getPhase() !== 'PLAYER_PLACING') return;
@@ -333,13 +346,14 @@ export class BattleScene extends Phaser.Scene {
     this.pendingFlyCount++;
     this.isAnimating = true;
     card.setDepth(100);
+    const dpr = Math.round(window.devicePixelRatio || 1);
     this.tweens.add({
       targets: card,
       x: slot.x,
       y: slot.y,
       angle: 0,
-      scaleX: 1,
-      scaleY: 1,
+      scaleX: 1 / dpr,
+      scaleY: 1 / dpr,
       duration: 280,
       ease: 'Cubic.easeOut',
       onComplete: () => {
@@ -613,14 +627,15 @@ export class BattleScene extends Phaser.Scene {
       const layout = BOARD_LAYOUT.layers[layerIndex];
       const centerX = layout.pokerSlots.reduce((s, p) => s + p.x, 0) / layout.pokerSlots.length;
 
+      const scoreDpr = Math.round(window.devicePixelRatio || 1);
       for (const slot of this.pokerSlots[layerIndex]) {
         const key = `${layerIndex}-${slot.slotIndex}`;
         const cardObj = this.boardCardObjects.get(key);
         if (cardObj) {
           this.tweens.add({
             targets: cardObj,
-            scaleX: 1.15,
-            scaleY: 1.15,
+            scaleX: 1.15 / scoreDpr,
+            scaleY: 1.15 / scoreDpr,
             duration: 150,
             yoyo: true,
           });

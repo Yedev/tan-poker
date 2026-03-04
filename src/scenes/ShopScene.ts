@@ -3,7 +3,7 @@ import { GameState } from '../state/GameState';
 import { AllEnhanceCards } from '../cards/enhance';
 import { EnhanceCard } from '../gameobjects/EnhanceCard';
 import type { EnhanceCardDef } from '../types/card';
-import { ENHANCE_SLOT_SIZE, BOARD_LAYOUT } from '../config';
+import { ENHANCE_SLOT_SIZE, BOARD_LAYOUT, GAME_WIDTH, GAME_HEIGHT } from '../config';
 import { Logger } from '../utils/Logger';
 
 const INVENTORY_SIZE = 3;
@@ -57,13 +57,24 @@ export class ShopScene extends Phaser.Scene {
     this.refreshCards();
 
     // Leave button
-    const btn = this.add.image(1150, 650, 'btn_shop_leave').setInteractive({ useHandCursor: true });
+    const btn = this.add.image(1150, 650, 'btn_shop_leave').setDisplaySize(140, 40).setInteractive({ useHandCursor: true });
     btn.on('pointerover', () => btn.setTint(0xaaffaa));
     btn.on('pointerout', () => btn.clearTint());
     btn.on('pointerup', () => {
       gs.resetRound();
       this.scene.start('BattleScene', { level: this.level });
     });
+
+    this.scale.on('resize', this.applyResponsiveScale, this);
+    this.events.once('shutdown', () => this.scale.off('resize', this.applyResponsiveScale, this));
+    this.applyResponsiveScale();
+  }
+
+  private applyResponsiveScale() {
+    if (!this.cameras?.main) return;
+    const dpr = Math.round(window.devicePixelRatio || 1);
+    this.cameras.main.setZoom(dpr);
+    this.cameras.main.centerOn(GAME_WIDTH / 2, GAME_HEIGHT / 2);
   }
 
   private createLayerSlots() {
@@ -76,7 +87,7 @@ export class ShopScene extends Phaser.Scene {
       const x = startX + i * slotSpacing;
       const y = 210;
 
-      this.add.image(x, y, 'enhance_slot_bg');
+      this.add.image(x, y, 'enhance_slot_bg').setDisplaySize(ENHANCE_SLOT_SIZE, ENHANCE_SLOT_SIZE);
       this.add.text(x, y + 45, `第 ${i} 层`, { fontSize: '14px', color: '#888888' }).setOrigin(0.5);
 
       const zone = this.add.zone(x, y, ENHANCE_SLOT_SIZE + 20, ENHANCE_SLOT_SIZE + 20).setRectangleDropZone(ENHANCE_SLOT_SIZE + 20, ENHANCE_SLOT_SIZE + 20);
@@ -93,7 +104,7 @@ export class ShopScene extends Phaser.Scene {
       const x = startX + i * 150;
       const y = 380;
       
-      this.add.image(x, y, 'enhance_slot_bg');
+      this.add.image(x, y, 'enhance_slot_bg').setDisplaySize(ENHANCE_SLOT_SIZE, ENHANCE_SLOT_SIZE);
       
       const zone = this.add.zone(x, y, ENHANCE_SLOT_SIZE + 20, ENHANCE_SLOT_SIZE + 20).setRectangleDropZone(ENHANCE_SLOT_SIZE + 20, ENHANCE_SLOT_SIZE + 20);
       zone.setData('type', 'inventory');

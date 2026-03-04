@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { GameState } from '../state/GameState';
 import { GameEventSystem } from '../events/GameEventSystem';
+import { GAME_WIDTH, GAME_HEIGHT } from '../config';
 
 export class VictoryScene extends Phaser.Scene {
   constructor() {
@@ -24,9 +25,20 @@ export class VictoryScene extends Phaser.Scene {
       fontSize: '20px', color: '#ffdd88', fontFamily: 'monospace',
     }).setOrigin(0.5);
 
-    const btn = this.add.image(640, 460, 'btn_restart').setInteractive({ useHandCursor: true });
+    const btn = this.add.image(640, 460, 'btn_restart').setDisplaySize(140, 40).setInteractive({ useHandCursor: true });
     btn.on('pointerover', () => btn.setTint(0xaaffaa));
     btn.on('pointerout', () => btn.clearTint());
     btn.on('pointerup', () => this.scene.start('TitleScene'));
+
+    this.scale.on('resize', this.applyResponsiveScale, this);
+    this.events.once('shutdown', () => this.scale.off('resize', this.applyResponsiveScale, this));
+    this.applyResponsiveScale();
+  }
+
+  private applyResponsiveScale() {
+    if (!this.cameras?.main) return;
+    const dpr = Math.round(window.devicePixelRatio || 1);
+    this.cameras.main.setZoom(dpr);
+    this.cameras.main.centerOn(GAME_WIDTH / 2, GAME_HEIGHT / 2);
   }
 }
