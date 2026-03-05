@@ -21,7 +21,7 @@ import { EnhanceCard } from '../gameobjects/EnhanceCard';
 import { ChallengeCard } from '../gameobjects/ChallengeCard';
 import {
   BOARD_LAYOUT, BOARD_TOP_Y, LAYER_SLOT_COUNTS, SCORE_CHANCES_PER_LEVEL, DISCARD_CHANCES_PER_ROUND,
-  DECK_PILE_X, DECK_PILE_Y, SLOT_HEIGHT,
+  DECK_PILE_X, DECK_PILE_Y, SLOT_WIDTH, SLOT_HEIGHT, CARD_WIDTH, CARD_HEIGHT,
   getTargetScore,
 } from '../config';
 import { Logger } from '../utils/Logger';
@@ -341,8 +341,8 @@ export class BattleScene extends Phaser.Scene {
       x: slot.x,
       y: slot.y,
       angle: 0,
-      scaleX: 1,
-      scaleY: 1,
+      scaleX: SLOT_WIDTH / CARD_WIDTH,
+      scaleY: SLOT_HEIGHT / CARD_HEIGHT,
       duration: 280,
       ease: 'Cubic.easeOut',
       onComplete: () => {
