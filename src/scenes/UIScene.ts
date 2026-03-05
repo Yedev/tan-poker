@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type { GamePhase } from '../types/game';
 import { EventBus } from '../events/EventBus';
-import { DECK_PILE_X, DECK_PILE_Y, CARD_WIDTH, CARD_HEIGHT } from '../config';
+import { DECK_PILE_X, DECK_PILE_Y, CARD_WIDTH, CARD_HEIGHT, PLAY_CARDS_LIMIT } from '../config';
 
 export class UIScene extends Phaser.Scene {
   private scoreText!: Phaser.GameObjects.Text;
@@ -14,6 +14,7 @@ export class UIScene extends Phaser.Scene {
   private goldText!: Phaser.GameObjects.Text;
   private scoreBtn!: Phaser.GameObjects.Image;
   private discardBtn!: Phaser.GameObjects.Image;
+  private cardsText!: Phaser.GameObjects.Text;
 
   // Deck pile display
   private deckShadow1!: Phaser.GameObjects.Image;
@@ -31,6 +32,7 @@ export class UIScene extends Phaser.Scene {
   private readonly _onPhase = (_: unknown, v: GamePhase) => { this.phaseText.setText(v); this.onPhaseChange(v); };
   private readonly _onDrawPile = (_: unknown, v: number) => this.onDeckCountChanged(v, true);
   private readonly _onGold = (_: unknown, v: number) => this.goldText.setText(`金币: ${v}`);
+  private readonly _onCardsPlayed = (_: unknown, v: number) => this.updateCardsText(v);
 
   constructor() {
     super('UIScene');
@@ -76,6 +78,13 @@ export class UIScene extends Phaser.Scene {
       stroke: '#000000', strokeThickness: 2,
     }).setOrigin(0.5).setAlpha(0).setDepth(1);
 
+    // ── Right column: cards-played indicator ──
+    this.add.text(1190, 438, '本轮出牌', { fontSize: '11px', color: '#888888', ...mono }).setOrigin(0.5);
+    this.cardsText = this.add.text(1190, 455, `0 / ${PLAY_CARDS_LIMIT}`, {
+      fontSize: '22px', color: '#ffffff', ...mono,
+      stroke: '#000000', strokeThickness: 3,
+    }).setOrigin(0.5);
+
     // ── Right column: action buttons ──
     this.scoreBtn = this.add.image(1190, 480, 'btn_score')
       .setDisplaySize(110, 40)
@@ -105,6 +114,7 @@ export class UIScene extends Phaser.Scene {
     this.registry.events.on('changedata-phase', this._onPhase, this);
     this.registry.events.on('changedata-drawPileCount', this._onDrawPile, this);
     this.registry.events.on('changedata-gold', this._onGold, this);
+    this.registry.events.on('changedata-cardsPlayedThisRound', this._onCardsPlayed, this);
 
     // This is the correct Phaser cleanup hook — scene.events fires 'shutdown'
     // automatically when the scene is stopped, paused, or destroyed.
@@ -156,6 +166,18 @@ export class UIScene extends Phaser.Scene {
     if (r.has('gold')) {
       this.goldText.setText(`金币: ${r.get('gold')}`);
     }
+    this.updateCardsText(r.has('cardsPlayedThisRound') ? r.get('cardsPlayedThisRound') : 0);
+  }
+
+  private updateCardsText(played: number) {
+    this.cardsText.setText(`${played} / ${PLAY_CARDS_LIMIT}`);
+    if (played >= PLAY_CARDS_LIMIT) {
+      this.cardsText.setColor('#ff4444');
+    } else if (played >= PLAY_CARDS_LIMIT - 1) {
+      this.cardsText.setColor('#ffaa33');
+    } else {
+      this.cardsText.setColor('#ffffff');
+    }
   }
 
   private onPhaseChange(phase: GamePhase) {
@@ -184,5 +206,6 @@ export class UIScene extends Phaser.Scene {
     this.registry.events.off('changedata-phase', this._onPhase, this);
     this.registry.events.off('changedata-drawPileCount', this._onDrawPile, this);
     this.registry.events.off('changedata-gold', this._onGold, this);
+    this.registry.events.off('changedata-cardsPlayedThisRound', this._onCardsPlayed, this);
   }
 }

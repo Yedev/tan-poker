@@ -813,6 +813,7 @@ export class BattleScene extends Phaser.Scene {
     this.registry.set('foundation', gs.foundation);
     this.registry.set('drawPileCount', this.engine.drawPile.length);
     this.registry.set('gold', gs.gold);
+    this.registry.set('cardsPlayedThisRound', this.engine.cardsPlayedThisRound);
   }
 
   private buildBaseContext(): BaseEventContext {
