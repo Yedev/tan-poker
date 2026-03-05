@@ -54,6 +54,8 @@ export class BattleScene extends Phaser.Scene {
   }
 
   create() {
+    // Full-viewport background fill (covers expanded areas beyond game_bg in EXPAND mode)
+    this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, 9999, 9999, 0x091a28).setDepth(-1);
     this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'game_bg').setDepth(0);
 
     const gs = GameState.getInstance();
