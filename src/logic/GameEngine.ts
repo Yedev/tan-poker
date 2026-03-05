@@ -36,6 +36,7 @@ export class GameEngine {
   levelScore = 0;
   scoreChances: number;
   discardChances: number;
+  cardsPlayedThisRound = 0;
 
   constructor(scoreChances: number, discardChances: number) {
     this.scoreChances = scoreChances;
@@ -75,6 +76,7 @@ export class GameEngine {
   }
 
   placeCard(cardData: CardData, layerIndex: number, slotIndex: number): CollapseResult | null {
+    this.cardsPlayedThisRound++;
     this.board[layerIndex].pokerSlots[slotIndex] = cardData;
     const idx = this.hand.indexOf(cardData);
     if (idx >= 0) this.hand.splice(idx, 1);
@@ -225,6 +227,13 @@ export class GameEngine {
 
   resetDiscardChances(count: number): void {
     this.discardChances = count;
+    this.cardsPlayedThisRound = 0;
+  }
+
+  drawExact(count: number): CardData[] {
+    const drawn = this._drawCards(count);
+    this.hand.push(...drawn);
+    return drawn;
   }
 
   private _drawCards(count: number): CardData[] {

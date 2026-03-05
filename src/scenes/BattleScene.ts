@@ -22,6 +22,7 @@ import { ChallengeCard } from '../gameobjects/ChallengeCard';
 import {
   BOARD_LAYOUT, BOARD_TOP_Y, LAYER_SLOT_COUNTS, SCORE_CHANCES_PER_LEVEL, DISCARD_CHANCES_PER_ROUND,
   DECK_PILE_X, DECK_PILE_Y, SLOT_WIDTH, SLOT_HEIGHT,
+  PLAY_CARDS_LIMIT, DISCARD_CARDS_LIMIT,
   getTargetScore,
 } from '../config';
 import { Logger } from '../utils/Logger';
@@ -173,7 +174,9 @@ export class BattleScene extends Phaser.Scene {
 
     for (let li = 0; li < this.layerHighlightRects.length; li++) {
       const emptySlots = this.pokerSlots[li].filter(s => !s.isOccupied);
-      const canPlace = canInteract && emptySlots.length >= selected.length;
+      const canPlace = canInteract
+        && emptySlots.length >= selected.length
+        && this.engine.cardsPlayedThisRound + selected.length <= PLAY_CARDS_LIMIT;
       const rect = this.layerHighlightRects[li];
 
       if (!canPlace) {
@@ -212,6 +215,11 @@ export class BattleScene extends Phaser.Scene {
     const selected = this.handAnimator.handCards.filter(c => c.isSelected);
     if (selected.length === 0) return;
 
+    if (this.engine.cardsPlayedThisRound + selected.length > PLAY_CARDS_LIMIT) {
+      Logger.warn(`出牌失败: 本轮已出 ${this.engine.cardsPlayedThisRound} 张，每轮最多 ${PLAY_CARDS_LIMIT} 张`);
+      return;
+    }
+
     const emptySlots = this.pokerSlots[layerIndex].filter(s => !s.isOccupied);
     if (emptySlots.length < selected.length) return;
 
@@ -233,6 +241,10 @@ export class BattleScene extends Phaser.Scene {
     if (selected.length > 1) {
       this.onLayerClicked(slot.layerIndex);
     } else {
+      if (this.engine.cardsPlayedThisRound >= PLAY_CARDS_LIMIT) {
+        Logger.warn(`出牌失败: 本轮已出 ${this.engine.cardsPlayedThisRound} 张，每轮最多 ${PLAY_CARDS_LIMIT} 张`);
+        return;
+      }
       this.placeCard(selected[0], slot);
     }
   }
@@ -272,6 +284,7 @@ export class BattleScene extends Phaser.Scene {
       if (!(obj instanceof Card) || obj.location !== 'hand') return;
       const slot = zone.getData('boardSlot') as BoardSlot | undefined;
       if (!slot || slot.slotType !== 'poker' || slot.isOccupied) return;
+      if (this.engine.cardsPlayedThisRound >= PLAY_CARDS_LIMIT) return;
 
       const gs = GameState.getInstance();
       const result = wouldCollapse(this.engine.board, gs.foundation + gs.tempFoundationBonus, slot.layerIndex, slot.slotIndex, obj.cardData);
@@ -301,6 +314,10 @@ export class BattleScene extends Phaser.Scene {
       if (!(obj instanceof Card) || obj.location !== 'hand') return;
       const slot = zone.getData('boardSlot') as BoardSlot | undefined;
       if (!slot || slot.slotType !== 'poker' || slot.isOccupied) {
+        (obj as Card).returnHome();
+        return;
+      }
+      if (this.engine.cardsPlayedThisRound >= PLAY_CARDS_LIMIT) {
         (obj as Card).returnHome();
         return;
       }
@@ -335,6 +352,7 @@ export class BattleScene extends Phaser.Scene {
 
     const collapseResult = this.engine.placeCard(card.cardData, slot.layerIndex, slot.slotIndex);
     if (collapseResult) this.pendingCollapseResult = collapseResult;
+    this.registry.set('cardsPlayedThisRound', this.engine.cardsPlayedThisRound);
 
     this.handAnimator.removeCard(card);
 
@@ -509,10 +527,12 @@ export class BattleScene extends Phaser.Scene {
     });
   }
 
-  private fillHand() {
+  private fillHand(exact?: number) {
     const gs = GameState.getInstance();
     const prevCount = this.handAnimator.handCards.length;
-    const newCards = this.engine.fillHand(gs.handSize);
+    const newCards = exact !== undefined
+      ? this.engine.drawExact(exact)
+      : this.engine.fillHand(gs.handSize);
     this.registry.set('drawPileCount', this.engine.drawPile.length);
 
     for (const card of newCards) {
@@ -550,6 +570,10 @@ export class BattleScene extends Phaser.Scene {
 
     const selected = this.handAnimator.handCards.filter(c => c.isSelected);
     if (selected.length === 0) return;
+    if (selected.length > DISCARD_CARDS_LIMIT) {
+      Logger.warn(`弃牌失败: 每次最多弃 ${DISCARD_CARDS_LIMIT} 张`);
+      return;
+    }
 
     Logger.card('弃牌', `[${Logger.fmtCards(selected.map(c => c.cardData))}]  剩余弃牌次数: ${this.engine.discardChances - 1}`);
     this.engine.discardChances--;
@@ -561,13 +585,14 @@ export class BattleScene extends Phaser.Scene {
       ges.emit(GAME_EVENTS.CARD_DISCARDED, ctx);
     }
 
+    const discardCount = selected.length;
     this.engine.discardFromHand(selected.map(c => c.cardData));
     for (const card of selected) {
       this.handAnimator.removeCard(card);
       card.destroy();
     }
 
-    this.fillHand();
+    this.fillHand(discardCount);
     for (const card of this.handAnimator.handCards) card.enableDrag();
 
     this.registry.set('discardChances', this.engine.discardChances);
@@ -635,6 +660,7 @@ export class BattleScene extends Phaser.Scene {
       if (this.engine.scoreChances > 0) {
         this.engine.resetDiscardChances(DISCARD_CHANCES_PER_ROUND);
         this.registry.set('discardChances', this.engine.discardChances);
+        this.registry.set('cardsPlayedThisRound', 0);
         this.fillHand();
         this.phaseManager.transitionTo('PLAYER_PLACING');
       } else {
