@@ -85,11 +85,11 @@ export class BootScene extends Phaser.Scene {
         const color = SUIT_COLORS[suit];
 
         ctx.fillStyle = '#f5f0e1';
-        roundRect(ctx, 0, 0, W, H, 4);
+        roundRect(ctx, 0, 0, W, H, 8);
         ctx.fill();
         ctx.strokeStyle = isRed ? '#aa3333' : '#333333';
         ctx.lineWidth = 1.5;
-        roundRect(ctx, 1, 1, W - 2, H - 2, 3);
+        roundRect(ctx, 1, 1, W - 2, H - 2, 7);
         ctx.stroke();
 
         ctx.fillStyle = color;
@@ -120,7 +120,7 @@ export class BootScene extends Phaser.Scene {
       const ctx = ct.getContext();
       ctx.scale(TX, TX);
       ctx.fillStyle = '#2a4858';
-      roundRect(ctx, 0, 0, W, H, 4);
+      roundRect(ctx, 0, 0, W, H, 8);
       ctx.fill();
       ctx.strokeStyle = '#c8a060';
       ctx.lineWidth = 2;

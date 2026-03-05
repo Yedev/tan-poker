@@ -79,8 +79,8 @@ export class Card extends Phaser.GameObjects.Image {
     const baseY = this.originalY;
     this.floatTween = this.scene.tweens.add({
       targets: this,
-      y: baseY - 4,
-      duration: 1400,
+      y: baseY - 2,
+      duration: 900,
       delay,
       ease: 'Sine.easeInOut',
       yoyo: true,

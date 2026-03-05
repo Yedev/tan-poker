@@ -11,7 +11,9 @@ export const ENHANCE_SLOT_SIZE = 52;
 
 export const DEFAULT_HAND_SIZE = 8;
 export const SCORE_CHANCES_PER_LEVEL = 3;
-export const DISCARD_CHANCES_PER_ROUND = 2;
+export const DISCARD_CHANCES_PER_ROUND = 1;
+export const PLAY_CARDS_LIMIT = 5;
+export const DISCARD_CARDS_LIMIT = 5;
 
 export const HAND_TYPE_MULTIPLIERS: Record<HandType, number> = {
   single: 1.0,
@@ -37,7 +39,7 @@ function buildBoardLayout() {
   const cx = GAME_WIDTH / 2;
   // Gap from rightmost poker-slot centre to enhance-slot centre:
   // half poker slot + half enhance slot + 8 px breathing room
-  const enhGap = Math.round(SLOT_SPACING / 2 + ENHANCE_SLOT_SIZE / 2) + 8;
+  const enhGap = Math.round(SLOT_SPACING / 2 + ENHANCE_SLOT_SIZE / 2) + 24;
 
   const layers = LAYER_SLOT_COUNTS.map((count, li) => {
     const y = BOARD_TOP_Y + li * LAYER_SPACING;
