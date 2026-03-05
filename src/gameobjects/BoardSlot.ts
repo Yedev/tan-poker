@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { SLOT_WIDTH, SLOT_HEIGHT, ENHANCE_SLOT_SIZE } from '../config';
+import { SLOT_WIDTH, SLOT_HEIGHT } from '../config';
 
 export class BoardSlot {
   public layerIndex: number;
@@ -27,15 +27,9 @@ export class BoardSlot {
 
     const texKey = slotType === 'poker' ? 'slot_bg' : 'enhance_slot_bg';
     this.bg = scene.add.image(x, y, texKey).setDepth(0);
-    if (slotType === 'poker') {
-      this.bg.setDisplaySize(SLOT_WIDTH, SLOT_HEIGHT);
-    } else {
-      this.bg.setDisplaySize(ENHANCE_SLOT_SIZE, ENHANCE_SLOT_SIZE);
-    }
+    this.bg.setDisplaySize(SLOT_WIDTH, SLOT_HEIGHT);
 
-    const w = slotType === 'poker' ? 72 : 52;
-    const h = slotType === 'poker' ? 98 : 52;
-    this.zone = scene.add.zone(x, y, w, h).setRectangleDropZone(w, h);
+    this.zone = scene.add.zone(x, y, SLOT_WIDTH, SLOT_HEIGHT).setRectangleDropZone(SLOT_WIDTH, SLOT_HEIGHT);
     this.zone.setData('boardSlot', this);
   }
 
