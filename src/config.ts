@@ -32,23 +32,23 @@ export const BOARD_LAYOUT = {
   layers: [
     {
       y: 120,
-      pokerSlots: [{ x: 640 }],
-      enhanceSlot: { x: 530 },
+      pokerSlots: [{ x: 520 }],
+      enhanceSlot: { x: 900 },
     },
     {
       y: 230,
-      pokerSlots: [{ x: 590 }, { x: 690 }],
-      enhanceSlot: { x: 480 },
+      pokerSlots: [{ x: 480 }, { x: 560 }],
+      enhanceSlot: { x: 900 },
     },
     {
       y: 340,
-      pokerSlots: [{ x: 540 }, { x: 640 }, { x: 740 }],
-      enhanceSlot: { x: 430 },
+      pokerSlots: [{ x: 440 }, { x: 520 }, { x: 600 }],
+      enhanceSlot: { x: 900 },
     },
     {
       y: 450,
-      pokerSlots: [{ x: 490 }, { x: 590 }, { x: 690 }, { x: 790 }],
-      enhanceSlot: { x: 380 },
+      pokerSlots: [{ x: 400 }, { x: 480 }, { x: 560 }, { x: 640 }],
+      enhanceSlot: { x: 900 },
     },
   ],
 };
@@ -57,9 +57,9 @@ export const HAND_Y = 600;
 export const HAND_SPACING = 68;
 export const HAND_CARD_SCALE = 1.4;
 
-// Deck pile display position (bottom-right area)
-export const DECK_PILE_X = 1070;
-export const DECK_PILE_Y = 640;
+// Deck pile display position (right column)
+export const DECK_PILE_X = 1190;
+export const DECK_PILE_Y = 300;
 
 export const SUITS = ['spades', 'hearts', 'clubs', 'diamonds'] as const;
 export const SUIT_SYMBOLS: Record<string, string> = {
