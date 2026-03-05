@@ -1,7 +1,7 @@
 import type { HandType } from './types/card';
 
-export const GAME_WIDTH = 1280;
-export const GAME_HEIGHT = 720;
+export const GAME_WIDTH = window.innerWidth;
+export const GAME_HEIGHT = window.innerHeight;
 
 export const CARD_WIDTH = 64;
 export const CARD_HEIGHT = 90;
@@ -54,7 +54,7 @@ function buildBoardLayout() {
 
 export const BOARD_LAYOUT = buildBoardLayout();
 
-export const HAND_Y = 620;
+export const HAND_Y = GAME_HEIGHT - 100;
 export const HAND_SPACING = 68;
 export const HAND_CARD_SCALE = 1.4;
 export const HAND_CARD_WIDTH = Math.round(CARD_WIDTH * HAND_CARD_SCALE);   // 90
@@ -62,7 +62,7 @@ export const HAND_CARD_HEIGHT = Math.round(CARD_HEIGHT * HAND_CARD_SCALE); // 12
 
 // Deck pile display position (bottom-left corner)
 export const DECK_PILE_X = 100;
-export const DECK_PILE_Y = 600;
+export const DECK_PILE_Y = GAME_HEIGHT - 120;
 
 export const SUITS = ['spades', 'hearts', 'clubs', 'diamonds'] as const;
 export const SUIT_SYMBOLS: Record<string, string> = {

@@ -5,16 +5,17 @@ import {
   DECK_PILE_X, DECK_PILE_Y,
   HAND_CARD_WIDTH, HAND_CARD_HEIGHT,
   PLAY_CARDS_LIMIT,
+  GAME_WIDTH, GAME_HEIGHT,
 } from '../config';
 
 // Left info area (no background — transparent)
 const PANEL_W = 200;
 const PX = 14;
 
-// Bottom-right corner: score & discard buttons
-const BTN_X = 1155;
-const SCORE_BTN_Y = 627;
-const DISCARD_BTN_Y = 685;
+// Bottom-right corner: score & discard buttons (relative to game dimensions)
+const BTN_X = GAME_WIDTH - 125;
+const SCORE_BTN_Y = GAME_HEIGHT - 93;
+const DISCARD_BTN_Y = GAME_HEIGHT - 35;
 
 export class UIScene extends Phaser.Scene {
   private scoreText!: Phaser.GameObjects.Text;
@@ -112,11 +113,11 @@ export class UIScene extends Phaser.Scene {
     this.fpsText   = this.add.text(PX, y + 12, 'FPS: --', { fontSize: '9px', color: '#2a3a4a', ...mono });
 
     // ── Cards-played indicator ────────────────────────────────────────────
-    this.add.text(PANEL_W / 2, 575, '本轮出牌', {
+    this.add.text(PANEL_W / 2, GAME_HEIGHT - 145, '本轮出牌', {
       fontSize: '11px', color: '#6a7f90', ...mono,
       stroke: '#000000', strokeThickness: 2,
     }).setOrigin(0.5);
-    this.cardsText = this.add.text(PANEL_W / 2, 593, `0 / ${PLAY_CARDS_LIMIT}`, {
+    this.cardsText = this.add.text(PANEL_W / 2, GAME_HEIGHT - 127, `0 / ${PLAY_CARDS_LIMIT}`, {
       fontSize: '20px', color: '#ffffff', ...mono,
       stroke: '#000000', strokeThickness: 3,
     }).setOrigin(0.5);
