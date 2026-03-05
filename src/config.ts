@@ -32,22 +32,22 @@ export const BOARD_LAYOUT = {
   layers: [
     {
       y: 120,
-      pokerSlots: [{ x: 520 }],
+      pokerSlots: [{ x: 640 }],
       enhanceSlot: { x: 900 },
     },
     {
       y: 230,
-      pokerSlots: [{ x: 480 }, { x: 560 }],
+      pokerSlots: [{ x: 600 }, { x: 680 }],
       enhanceSlot: { x: 900 },
     },
     {
       y: 340,
-      pokerSlots: [{ x: 440 }, { x: 520 }, { x: 600 }],
+      pokerSlots: [{ x: 560 }, { x: 640 }, { x: 720 }],
       enhanceSlot: { x: 900 },
     },
     {
       y: 450,
-      pokerSlots: [{ x: 400 }, { x: 480 }, { x: 560 }, { x: 640 }],
+      pokerSlots: [{ x: 520 }, { x: 600 }, { x: 680 }, { x: 760 }],
       enhanceSlot: { x: 900 },
     },
   ],
