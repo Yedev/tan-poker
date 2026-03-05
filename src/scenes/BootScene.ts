@@ -3,6 +3,7 @@ import {
   CARD_WIDTH, CARD_HEIGHT, HAND_CARD_WIDTH, HAND_CARD_HEIGHT,
   SLOT_WIDTH, SLOT_HEIGHT, ENHANCE_SLOT_SIZE,
   SUITS, SUIT_SYMBOLS, SUIT_COLORS, RANK_LABELS,
+  GAME_WIDTH, GAME_HEIGHT,
 } from '../config';
 
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
@@ -179,5 +180,82 @@ export class BootScene extends Phaser.Scene {
       ctx.fill();
       ct.refresh();
     }
+
+    this.makeGameBackground();
+  }
+
+  private makeGameBackground() {
+    const W = GAME_WIDTH;
+    const H = GAME_HEIGHT;
+    const ct = this.textures.createCanvas('game_bg', W, H)!;
+    const ctx = ct.getContext();
+
+    // ── Base gradient: deep navy → dark teal ──────────────────────────────
+    const grad = ctx.createLinearGradient(0, 0, W * 0.4, H);
+    grad.addColorStop(0,   '#0b1c2c');
+    grad.addColorStop(0.5, '#0d2233');
+    grad.addColorStop(1,   '#091a28');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+
+    // ── Subtle felt-weave noise: tiny overlapping strokes ─────────────────
+    ctx.globalAlpha = 0.04;
+    for (let y = 0; y < H; y += 3) {
+      ctx.strokeStyle = (y % 6 === 0) ? '#4a8a6a' : '#2a5a4a';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(W, y);
+      ctx.stroke();
+    }
+    for (let x = 0; x < W; x += 3) {
+      ctx.strokeStyle = (x % 6 === 0) ? '#3a7a5a' : '#1a4a3a';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, H);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+
+    // ── Repeating watermark suit symbols ──────────────────────────────────
+    const suits = ['♠', '♥', '♦', '♣'];
+    const suitsColors = ['#aaccff', '#ff8888', '#ff9966', '#88ddaa'];
+    const gridX = 90;
+    const gridY = 80;
+    ctx.font = '28px serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    let row = 0;
+    for (let y = gridY / 2; y < H + gridY; y += gridY) {
+      const offsetX = (row % 2) * (gridX / 2);
+      let col = 0;
+      for (let x = offsetX; x < W + gridX; x += gridX) {
+        const suitIdx = (row + col) % 4;
+        ctx.globalAlpha = 0.055;
+        ctx.fillStyle = suitsColors[suitIdx];
+        ctx.fillText(suits[suitIdx], x, y);
+        col++;
+      }
+      row++;
+    }
+    ctx.globalAlpha = 1;
+
+    // ── Radial vignette: dark edges, lighter center ───────────────────────
+    const vign = ctx.createRadialGradient(W / 2, H / 2, H * 0.2, W / 2, H / 2, H * 0.82);
+    vign.addColorStop(0, 'rgba(255,255,255,0.03)');
+    vign.addColorStop(1, 'rgba(0,0,0,0.55)');
+    ctx.fillStyle = vign;
+    ctx.fillRect(0, 0, W, H);
+
+    // ── Thin gold border frame ─────────────────────────────────────────────
+    ctx.strokeStyle = 'rgba(180,140,60,0.25)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(12, 12, W - 24, H - 24);
+    ctx.strokeStyle = 'rgba(180,140,60,0.12)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(18, 18, W - 36, H - 36);
+
+    ct.refresh();
   }
 }

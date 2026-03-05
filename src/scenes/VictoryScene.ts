@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { GameState } from '../state/GameState';
 import { GameEventSystem } from '../events/GameEventSystem';
+import { GAME_WIDTH, GAME_HEIGHT } from '../config';
 
 export class VictoryScene extends Phaser.Scene {
   constructor() {
@@ -9,6 +10,7 @@ export class VictoryScene extends Phaser.Scene {
 
   create() {
     GameEventSystem.getInstance().unregisterAll();
+    this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'game_bg');
 
     const gs = GameState.getInstance();
 

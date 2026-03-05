@@ -3,7 +3,7 @@ import { GameState } from '../state/GameState';
 import { AllEnhanceCards } from '../cards/enhance';
 import { EnhanceCard } from '../gameobjects/EnhanceCard';
 import type { EnhanceCardDef } from '../types/card';
-import { ENHANCE_SLOT_SIZE, BOARD_LAYOUT } from '../config';
+import { ENHANCE_SLOT_SIZE, BOARD_LAYOUT, GAME_WIDTH, GAME_HEIGHT } from '../config';
 import { Logger } from '../utils/Logger';
 
 const INVENTORY_SIZE = 3;
@@ -34,7 +34,8 @@ export class ShopScene extends Phaser.Scene {
 
   create() {
     const gs = GameState.getInstance();
-    
+    this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'game_bg');
+
     // Title
     this.add.text(640, 40, '商 店', {
       fontSize: '40px', color: '#e8d8b8', fontFamily: 'serif',

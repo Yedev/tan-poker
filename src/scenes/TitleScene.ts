@@ -4,7 +4,7 @@ import { createDeck } from '../logic/deck';
 import { StraightFever } from '../cards/enhance/StraightFever';
 import { RoyalExclusive } from '../cards/enhance/RoyalExclusive';
 import { HollowBrick } from '../cards/enhance/HollowBrick';
-import { CARD_WIDTH, CARD_HEIGHT } from '../config';
+import { CARD_WIDTH, CARD_HEIGHT, GAME_WIDTH, GAME_HEIGHT } from '../config';
 
 export class TitleScene extends Phaser.Scene {
   constructor() {
@@ -12,6 +12,8 @@ export class TitleScene extends Phaser.Scene {
   }
 
   create() {
+    this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'game_bg');
+
     this.add.text(640, 200, '叠 牌', {
       fontSize: '72px', color: '#e8d8b8', fontFamily: 'serif',
     }).setOrigin(0.5);

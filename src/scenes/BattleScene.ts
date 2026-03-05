@@ -23,6 +23,7 @@ import {
   BOARD_LAYOUT, BOARD_TOP_Y, LAYER_SLOT_COUNTS, SCORE_CHANCES_PER_LEVEL, DISCARD_CHANCES_PER_ROUND,
   DECK_PILE_X, DECK_PILE_Y, SLOT_WIDTH, SLOT_HEIGHT,
   PLAY_CARDS_LIMIT, DISCARD_CARDS_LIMIT,
+  GAME_WIDTH, GAME_HEIGHT,
   getTargetScore,
 } from '../config';
 import { Logger } from '../utils/Logger';
@@ -53,6 +54,8 @@ export class BattleScene extends Phaser.Scene {
   }
 
   create() {
+    this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'game_bg').setDepth(0);
+
     const gs = GameState.getInstance();
     gs.currentLevel = this.level;
     this.targetScore = getTargetScore(this.level);
