@@ -14,7 +14,7 @@ import { PhaseManager } from '../logic/PhaseManager';
 import { GameEngine } from '../logic/GameEngine';
 import type { EffectDelta } from '../logic/GameEngine';
 import { HandAnimator } from '../rendering/HandAnimator';
-import { wouldCollapse, getLayerWeight } from '../logic/collapse';
+import { wouldCollapse, checkCollapse, getLayerWeight } from '../logic/collapse';
 import { Card } from '../gameobjects/Card';
 import { BoardSlot } from '../gameobjects/BoardSlot';
 import { EnhanceCard } from '../gameobjects/EnhanceCard';
@@ -119,7 +119,7 @@ export class BattleScene extends Phaser.Scene {
           }
         });
         slot.zone.on('pointerout', () => {
-          if (!slot.isOccupied) slot.setHighlight('normal');
+          if (!slot.isOccupied) this.updateLayerHighlights();
         });
 
         rowSlots.push(slot);
@@ -137,9 +137,9 @@ export class BattleScene extends Phaser.Scene {
         new EnhanceCard(this, layout.enhanceSlot.x, layout.y, enhCardDef).setDepth(3);
       }
 
-      const wt = this.add.text(layout.enhanceSlot.x, layout.y - 38, '', {
-        fontSize: '12px', color: '#aaaaaa', fontFamily: 'monospace',
-      }).setOrigin(0.5).setDepth(5);
+      const wt = this.add.text(layout.pokerSlots[0].x - 54, layout.y, '', {
+        fontSize: '13px', color: '#aaaaaa', fontFamily: 'monospace',
+      }).setOrigin(1, 0.5).setDepth(5);
       this.weightTexts.push(wt);
 
       const leftX = layout.pokerSlots[0].x - 46;
@@ -167,15 +167,41 @@ export class BattleScene extends Phaser.Scene {
 
   private updateLayerHighlights() {
     const selected = this.handAnimator.handCards.filter(c => c.isSelected);
-    const hasSelection = selected.length > 0;
-    const canInteract = hasSelection && !this.isAnimating && this.phaseManager.getPhase() === 'PLAYER_PLACING';
+    const canInteract = selected.length > 0 && !this.isAnimating && this.phaseManager.getPhase() === 'PLAYER_PLACING';
+    const gs = GameState.getInstance();
+    const foundation = gs.foundation + gs.tempFoundationBonus;
 
     for (let li = 0; li < this.layerHighlightRects.length; li++) {
-      const emptyCount = this.pokerSlots[li].filter(s => !s.isOccupied).length;
-      const show = canInteract && emptyCount >= selected.length;
+      const emptySlots = this.pokerSlots[li].filter(s => !s.isOccupied);
+      const canPlace = canInteract && emptySlots.length >= selected.length;
       const rect = this.layerHighlightRects[li];
-      rect.setStrokeStyle(2, 0x00ff88, show ? 1 : 0);
-      rect.setFillStyle(0x00ff88, show ? 0.08 : 0);
+
+      if (!canPlace) {
+        rect.setStrokeStyle(2, 0x00ff88, 0);
+        rect.setFillStyle(0x00ff88, 0);
+        for (const slot of this.pokerSlots[li]) {
+          if (!slot.isOccupied) slot.setHighlight('normal');
+        }
+        continue;
+      }
+
+      // Simulate placing selected cards into the first N empty slots
+      const simLayers = this.engine.board.map(l => ({
+        pokerSlots: [...l.pokerSlots],
+        overrideWeight: l.overrideWeight,
+      }));
+      emptySlots.slice(0, selected.length).forEach((s, idx) => {
+        simLayers[li].pokerSlots[s.slotIndex] = selected[idx].cardData;
+      });
+      const collapsed = checkCollapse(simLayers, foundation).collapsed;
+
+      const color = collapsed ? 0xff4444 : 0x00ff88;
+      rect.setStrokeStyle(2, color, 1);
+      rect.setFillStyle(color, 0.08);
+      const highlight = collapsed ? 'danger' : 'hover';
+      for (const slot of this.pokerSlots[li]) {
+        if (!slot.isOccupied) slot.setHighlight(highlight);
+      }
     }
   }
 

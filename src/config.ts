@@ -37,7 +37,7 @@ function buildBoardLayout() {
   const cx = GAME_WIDTH / 2;
   // Gap from rightmost poker-slot centre to enhance-slot centre:
   // half poker slot + half enhance slot + 8 px breathing room
-  const enhGap = Math.round(SLOT_SPACING / 2 + ENHANCE_SLOT_SIZE / 2) + 8;
+  const enhGap = Math.round(SLOT_SPACING / 2 + ENHANCE_SLOT_SIZE / 2) + 24;
 
   const layers = LAYER_SLOT_COUNTS.map((count, li) => {
     const y = BOARD_TOP_Y + li * LAYER_SPACING;
