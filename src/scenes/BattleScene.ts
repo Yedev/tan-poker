@@ -20,7 +20,7 @@ import { BoardSlot } from '../gameobjects/BoardSlot';
 import { EnhanceCard } from '../gameobjects/EnhanceCard';
 import { ChallengeCard } from '../gameobjects/ChallengeCard';
 import {
-  BOARD_LAYOUT, LAYER_SLOT_COUNTS, SCORE_CHANCES_PER_LEVEL, DISCARD_CHANCES_PER_ROUND,
+  BOARD_LAYOUT, BOARD_TOP_Y, LAYER_SLOT_COUNTS, SCORE_CHANCES_PER_LEVEL, DISCARD_CHANCES_PER_ROUND,
   DECK_PILE_X, DECK_PILE_Y, SLOT_HEIGHT,
   getTargetScore,
 } from '../config';
@@ -154,8 +154,8 @@ export class BattleScene extends Phaser.Scene {
       this.layerHighlightRects.push(rect);
     }
 
-    // Column header for enhance slots
-    this.add.text(900, 82, '增强', {
+    // Column header for enhance slots — sits above the first layer's enhance slot
+    this.add.text(BOARD_LAYOUT.layers[0].enhanceSlot.x, BOARD_TOP_Y - 38, '增强', {
       fontSize: '12px', color: '#886633', fontFamily: 'monospace',
     }).setOrigin(0.5);
 

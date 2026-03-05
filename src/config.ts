@@ -28,30 +28,29 @@ export function getTargetScore(level: number): number {
 
 export const LAYER_SLOT_COUNTS = [1, 2, 3, 4];
 
-export const BOARD_LAYOUT = {
-  layers: [
-    {
-      y: 120,
-      pokerSlots: [{ x: 640 }],
-      enhanceSlot: { x: 900 },
-    },
-    {
-      y: 230,
-      pokerSlots: [{ x: 600 }, { x: 680 }],
-      enhanceSlot: { x: 900 },
-    },
-    {
-      y: 340,
-      pokerSlots: [{ x: 560 }, { x: 640 }, { x: 720 }],
-      enhanceSlot: { x: 900 },
-    },
-    {
-      y: 450,
-      pokerSlots: [{ x: 520 }, { x: 600 }, { x: 680 }, { x: 760 }],
-      enhanceSlot: { x: 900 },
-    },
-  ],
-};
+export const BOARD_TOP_Y = 120;
+export const LAYER_SPACING = 110;
+// Center-to-center distance between adjacent poker slots in a row
+export const SLOT_SPACING = 80;
+
+function buildBoardLayout() {
+  const cx = GAME_WIDTH / 2;
+  // Gap from rightmost poker-slot centre to enhance-slot centre:
+  // half poker slot + half enhance slot + 8 px breathing room
+  const enhGap = Math.round(SLOT_SPACING / 2 + ENHANCE_SLOT_SIZE / 2) + 8;
+
+  const layers = LAYER_SLOT_COUNTS.map((count, li) => {
+    const y = BOARD_TOP_Y + li * LAYER_SPACING;
+    const pokerSlots = Array.from({ length: count }, (_, j) => ({
+      x: Math.round(cx - ((count - 1) / 2) * SLOT_SPACING + j * SLOT_SPACING),
+    }));
+    const rightmostX = pokerSlots[pokerSlots.length - 1].x;
+    return { y, pokerSlots, enhanceSlot: { x: rightmostX + enhGap } };
+  });
+  return { layers };
+}
+
+export const BOARD_LAYOUT = buildBoardLayout();
 
 export const HAND_Y = 600;
 export const HAND_SPACING = 68;
