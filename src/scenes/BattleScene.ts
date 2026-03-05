@@ -190,7 +190,7 @@ export class BattleScene extends Phaser.Scene {
     if (emptySlots.length < selected.length) return;
 
     for (let i = 0; i < selected.length; i++) {
-      this.placeCard(selected[i], emptySlots[i]);
+      this.placeCard(selected[i], emptySlots[i], i * 120);
       // Stop if a collapse was triggered — further placements would go onto a cleared board
       if (this.pendingCollapseResult) break;
     }
@@ -295,7 +295,7 @@ export class BattleScene extends Phaser.Scene {
     EventBus.on('ui:discard-requested', this.onDiscardRequested, this);
   }
 
-  private placeCard(card: Card, slot: BoardSlot) {
+  private placeCard(card: Card, slot: BoardSlot, flyDelay = 0) {
     Logger.card('放置', `${Logger.fmtCard(card.cardData)} → Layer${slot.layerIndex} Slot${slot.slotIndex}`);
 
     card.location = 'board';
@@ -349,6 +349,7 @@ export class BattleScene extends Phaser.Scene {
       scaleX: targetScaleX,
       scaleY: targetScaleY,
       duration: 280,
+      delay: flyDelay,
       ease: 'Cubic.easeOut',
       onComplete: () => {
         card.setDepth(5);
