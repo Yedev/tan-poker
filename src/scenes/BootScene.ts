@@ -1,7 +1,9 @@
 import Phaser from 'phaser';
 import {
-  CARD_WIDTH, CARD_HEIGHT, SLOT_WIDTH, SLOT_HEIGHT, ENHANCE_SLOT_SIZE,
+  CARD_WIDTH, CARD_HEIGHT, HAND_CARD_WIDTH, HAND_CARD_HEIGHT,
+  SLOT_WIDTH, SLOT_HEIGHT, ENHANCE_SLOT_SIZE,
   SUITS, SUIT_SYMBOLS, SUIT_COLORS, RANK_LABELS,
+  GAME_WIDTH, GAME_HEIGHT,
 } from '../config';
 
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
@@ -52,6 +54,53 @@ function makeButtonTexture(scene: Phaser.Scene, key: string, w: number, h: numbe
   ct.refresh();
 }
 
+/** Balatro-style raised (3-D) button with shadow, face, highlight strip. */
+function makeRaisedButton(
+  scene: Phaser.Scene, key: string, w: number, h: number,
+  shadowColor: string, faceColor: string, label: string, fontSize = 19,
+) {
+  const lift = 5;
+  const r = 9;
+  const ct = scene.textures.createCanvas(key, w, h)!;
+  const ctx = ct.getContext();
+
+  // Bottom shadow layer
+  ctx.fillStyle = shadowColor;
+  roundRect(ctx, 0, lift, w, h - lift, r);
+  ctx.fill();
+
+  // Face (raised, slightly lighter)
+  ctx.fillStyle = faceColor;
+  roundRect(ctx, 0, 0, w, h - lift, r);
+  ctx.fill();
+
+  // Top highlight strip
+  ctx.fillStyle = 'rgba(255,255,255,0.18)';
+  ctx.beginPath();
+  ctx.rect(3, 3, w - 6, Math.round((h - lift) * 0.42));
+  ctx.fill();
+
+  // Border
+  ctx.strokeStyle = 'rgba(255,255,255,0.28)';
+  ctx.lineWidth = 1.5;
+  roundRect(ctx, 1, 1, w - 2, h - lift - 1, r - 1);
+  ctx.stroke();
+
+  // Label
+  ctx.fillStyle = '#ffffff';
+  ctx.font = `bold ${fontSize}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.shadowColor = 'rgba(0,0,0,0.5)';
+  ctx.shadowBlur = 4;
+  ctx.shadowOffsetY = 1;
+  ctx.fillText(label, w / 2, (h - lift) / 2 + 1);
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetY = 0;
+
+  ct.refresh();
+}
+
 export class BootScene extends Phaser.Scene {
   constructor() {
     super('BootScene');
@@ -70,9 +119,12 @@ export class BootScene extends Phaser.Scene {
   }
 
   private generateAllTextures() {
-    const W = CARD_WIDTH;
-    const H = CARD_HEIGHT;
-    // Draw card textures at 2× so they stay sharp when scaled up in hand
+    // Draw card textures at HAND_CARD size (the largest display size) so hand
+    // cards render at native resolution with no upscaling. Other contexts
+    // (deck pile, board slots) scale down, which stays sharp.
+    const W = HAND_CARD_WIDTH;   // 90
+    const H = HAND_CARD_HEIGHT;  // 126
+    // Additional 2× supersampling so even the bounce animation stays sharp.
     const TX = 2;
 
     for (const suit of SUITS) {
@@ -85,31 +137,31 @@ export class BootScene extends Phaser.Scene {
         const color = SUIT_COLORS[suit];
 
         ctx.fillStyle = '#f5f0e1';
-        roundRect(ctx, 0, 0, W, H, 8);
+        roundRect(ctx, 0, 0, W, H, 11);
         ctx.fill();
         ctx.strokeStyle = isRed ? '#aa3333' : '#333333';
         ctx.lineWidth = 1.5;
-        roundRect(ctx, 1, 1, W - 2, H - 2, 7);
+        roundRect(ctx, 1, 1, W - 2, H - 2, 10);
         ctx.stroke();
 
         ctx.fillStyle = color;
-        ctx.font = 'bold 15px monospace';
+        ctx.font = 'bold 21px monospace';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'top';
-        ctx.fillText(RANK_LABELS[rank], 4, 3);
+        ctx.fillText(RANK_LABELS[rank], 6, 4);
 
-        ctx.font = '12px serif';
-        ctx.fillText(SUIT_SYMBOLS[suit], 4, 19);
+        ctx.font = '17px serif';
+        ctx.fillText(SUIT_SYMBOLS[suit], 6, 27);
 
-        ctx.font = '26px serif';
+        ctx.font = '36px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(SUIT_SYMBOLS[suit], W / 2, H / 2 + 4);
+        ctx.fillText(SUIT_SYMBOLS[suit], W / 2, H / 2 + 6);
 
-        ctx.font = 'bold 10px monospace';
+        ctx.font = 'bold 14px monospace';
         ctx.textAlign = 'right';
         ctx.textBaseline = 'bottom';
-        ctx.fillText(RANK_LABELS[rank] + SUIT_SYMBOLS[suit], W - 3, H - 3);
+        ctx.fillText(RANK_LABELS[rank] + SUIT_SYMBOLS[suit], W - 4, H - 4);
 
         ct.refresh();
       }
@@ -120,21 +172,21 @@ export class BootScene extends Phaser.Scene {
       const ctx = ct.getContext();
       ctx.scale(TX, TX);
       ctx.fillStyle = '#2a4858';
-      roundRect(ctx, 0, 0, W, H, 8);
+      roundRect(ctx, 0, 0, W, H, 11);
       ctx.fill();
       ctx.strokeStyle = '#c8a060';
-      ctx.lineWidth = 2;
-      roundRect(ctx, 3, 3, W - 6, H - 6, 3);
+      ctx.lineWidth = 3;
+      roundRect(ctx, 4, 4, W - 8, H - 8, 4);
       ctx.stroke();
       ctx.strokeStyle = '#c8a060';
       ctx.lineWidth = 1;
-      roundRect(ctx, 7, 7, W - 14, H - 14, 2);
+      roundRect(ctx, 10, 10, W - 20, H - 20, 3);
       ctx.stroke();
       for (let i = 0; i < 4; i++) {
         for (let j = 0; j < 6; j++) {
           if ((i + j) % 2 === 0) {
             ctx.fillStyle = '#3a5868';
-            ctx.fillRect(12 + i * 10, 12 + j * 11, 8, 9);
+            ctx.fillRect(17 + i * 14, 17 + j * 16, 11, 13);
           }
         }
       }
@@ -146,8 +198,8 @@ export class BootScene extends Phaser.Scene {
     makeSlotTexture(this, 'slot_danger', SLOT_WIDTH, SLOT_HEIGHT, '#ba5a5a', '#8a3a3a');
     makeSlotTexture(this, 'enhance_slot_bg', ENHANCE_SLOT_SIZE, ENHANCE_SLOT_SIZE, '#8a7a4a', '#5a4a2a');
 
-    makeButtonTexture(this, 'btn_score', 110, 40, '#2a6a2a', '计分');
-    makeButtonTexture(this, 'btn_discard', 110, 40, '#6a3a2a', '弃牌');
+    makeRaisedButton(this, 'btn_score',   174, 52, '#145228', '#1e7a3c', '计分', 20);
+    makeRaisedButton(this, 'btn_discard', 174, 46, '#6a2210', '#b04018', '弃牌', 18);
     makeButtonTexture(this, 'btn_start', 160, 50, '#3a3a8a', '开始游戏');
     makeButtonTexture(this, 'btn_continue', 140, 40, '#3a6a3a', '继续');
     makeButtonTexture(this, 'btn_restart', 140, 40, '#6a3a3a', '重新开始');
@@ -175,5 +227,82 @@ export class BootScene extends Phaser.Scene {
       ctx.fill();
       ct.refresh();
     }
+
+    this.makeGameBackground();
+  }
+
+  private makeGameBackground() {
+    const W = GAME_WIDTH;
+    const H = GAME_HEIGHT;
+    const ct = this.textures.createCanvas('game_bg', W, H)!;
+    const ctx = ct.getContext();
+
+    // ── Base gradient: deep navy → dark teal ──────────────────────────────
+    const grad = ctx.createLinearGradient(0, 0, W * 0.4, H);
+    grad.addColorStop(0,   '#0b1c2c');
+    grad.addColorStop(0.5, '#0d2233');
+    grad.addColorStop(1,   '#091a28');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+
+    // ── Subtle felt-weave noise: tiny overlapping strokes ─────────────────
+    ctx.globalAlpha = 0.04;
+    for (let y = 0; y < H; y += 3) {
+      ctx.strokeStyle = (y % 6 === 0) ? '#4a8a6a' : '#2a5a4a';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(W, y);
+      ctx.stroke();
+    }
+    for (let x = 0; x < W; x += 3) {
+      ctx.strokeStyle = (x % 6 === 0) ? '#3a7a5a' : '#1a4a3a';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, H);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+
+    // ── Repeating watermark suit symbols ──────────────────────────────────
+    const suits = ['♠', '♥', '♦', '♣'];
+    const suitsColors = ['#aaccff', '#ff8888', '#ff9966', '#88ddaa'];
+    const gridX = 90;
+    const gridY = 80;
+    ctx.font = '28px serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    let row = 0;
+    for (let y = gridY / 2; y < H + gridY; y += gridY) {
+      const offsetX = (row % 2) * (gridX / 2);
+      let col = 0;
+      for (let x = offsetX; x < W + gridX; x += gridX) {
+        const suitIdx = (row + col) % 4;
+        ctx.globalAlpha = 0.055;
+        ctx.fillStyle = suitsColors[suitIdx];
+        ctx.fillText(suits[suitIdx], x, y);
+        col++;
+      }
+      row++;
+    }
+    ctx.globalAlpha = 1;
+
+    // ── Radial vignette: dark edges, lighter center ───────────────────────
+    const vign = ctx.createRadialGradient(W / 2, H / 2, H * 0.2, W / 2, H / 2, H * 0.82);
+    vign.addColorStop(0, 'rgba(255,255,255,0.03)');
+    vign.addColorStop(1, 'rgba(0,0,0,0.55)');
+    ctx.fillStyle = vign;
+    ctx.fillRect(0, 0, W, H);
+
+    // ── Thin gold border frame ─────────────────────────────────────────────
+    ctx.strokeStyle = 'rgba(180,140,60,0.25)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(12, 12, W - 24, H - 24);
+    ctx.strokeStyle = 'rgba(180,140,60,0.12)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(18, 18, W - 36, H - 36);
+
+    ct.refresh();
   }
 }
