@@ -72,12 +72,15 @@ export class BootScene extends Phaser.Scene {
   private generateAllTextures() {
     const W = CARD_WIDTH;
     const H = CARD_HEIGHT;
+    // Draw card textures at 2× so they stay sharp when scaled up in hand
+    const TX = 2;
 
     for (const suit of SUITS) {
       for (let rank = 2; rank <= 14; rank++) {
         const key = `card_${suit}_${rank}`;
-        const ct = this.textures.createCanvas(key, W, H)!;
+        const ct = this.textures.createCanvas(key, W * TX, H * TX)!;
         const ctx = ct.getContext();
+        ctx.scale(TX, TX);
         const isRed = suit === 'hearts' || suit === 'diamonds';
         const color = SUIT_COLORS[suit];
 
@@ -113,8 +116,9 @@ export class BootScene extends Phaser.Scene {
     }
 
     {
-      const ct = this.textures.createCanvas('card_back', W, H)!;
+      const ct = this.textures.createCanvas('card_back', W * TX, H * TX)!;
       const ctx = ct.getContext();
+      ctx.scale(TX, TX);
       ctx.fillStyle = '#2a4858';
       roundRect(ctx, 0, 0, W, H, 4);
       ctx.fill();
