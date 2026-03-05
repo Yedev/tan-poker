@@ -8,9 +8,10 @@ import {
   GAME_WIDTH, GAME_HEIGHT,
 } from '../config';
 
-// Left info area (no background — transparent)
-const PANEL_W = 200;
-const PX = 14;
+// Left info panel
+const PANEL_W = 210;
+const PX = 16;
+const PANEL_PAD_Y = 12; // vertical padding inside the panel
 
 // Bottom-right corner: score & discard buttons (relative to game dimensions)
 const BTN_X = GAME_WIDTH - 125;
@@ -60,16 +61,24 @@ export class UIScene extends Phaser.Scene {
     const serif = { fontFamily: 'serif' };
 
     // ══════════════════════════════════════════════════════════════════════
-    //  LEFT INFO AREA — transparent (no background panel)
+    //  LEFT INFO PANEL — semi-transparent background
     // ══════════════════════════════════════════════════════════════════════
 
+    // Background panel (drawn first so it sits below all text)
+    const panelHeight = 240;
+    const panelGraphics = this.add.graphics();
+    panelGraphics.fillStyle(0x050d16, 0.72);
+    panelGraphics.fillRoundedRect(0, 0, PANEL_W, panelHeight, { tl: 0, tr: 0, bl: 8, br: 8 });
+    panelGraphics.lineStyle(1, 0x1e3a50, 0.8);
+    panelGraphics.strokeRoundedRect(0, 0, PANEL_W, panelHeight, { tl: 0, tr: 0, bl: 8, br: 8 });
+
     // ── Level text ────────────────────────────────────────────────────────
-    this.levelText = this.add.text(PANEL_W / 2, 26, '第 1 关', {
+    this.levelText = this.add.text(PANEL_W / 2, PANEL_PAD_Y + 16, '第 1 关', {
       fontSize: '21px', color: '#fff8e7', fontStyle: 'bold', ...serif,
       stroke: '#000000', strokeThickness: 3,
     }).setOrigin(0.5);
 
-    let y = 60;
+    let y = PANEL_PAD_Y + 52;
 
     // ── Target score ──────────────────────────────────────────────────────
     this.add.text(PX, y, '目标分数', {
@@ -109,8 +118,8 @@ export class UIScene extends Phaser.Scene {
     y += 34;
 
     // ── Debug info (tiny) ─────────────────────────────────────────────────
-    this.phaseText = this.add.text(PX, y, '', { fontSize: '9px', color: '#2a3a4a', ...mono });
-    this.fpsText   = this.add.text(PX, y + 12, 'FPS: --', { fontSize: '9px', color: '#2a3a4a', ...mono });
+    this.phaseText = this.add.text(PX, y, '', { fontSize: '9px', color: '#3a5060', ...mono });
+    this.fpsText   = this.add.text(PX, y + 12, 'FPS: --', { fontSize: '9px', color: '#3a5060', ...mono });
 
     // ── Cards-played indicator ────────────────────────────────────────────
     this.add.text(PANEL_W / 2, GAME_HEIGHT - 145, '本轮出牌', {
