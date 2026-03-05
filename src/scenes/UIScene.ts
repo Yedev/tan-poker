@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type { GamePhase } from '../types/game';
 import { EventBus } from '../events/EventBus';
-import { DECK_PILE_X, DECK_PILE_Y, CARD_WIDTH, CARD_HEIGHT, GAME_WIDTH, GAME_HEIGHT } from '../config';
+import { DECK_PILE_X, DECK_PILE_Y, CARD_WIDTH, CARD_HEIGHT } from '../config';
 
 export class UIScene extends Phaser.Scene {
   private scoreText!: Phaser.GameObjects.Text;
@@ -110,18 +110,7 @@ export class UIScene extends Phaser.Scene {
     // automatically when the scene is stopped, paused, or destroyed.
     this.events.once('shutdown', this.removeRegistryListeners, this);
 
-    this.scale.on('resize', this.applyResponsiveScale, this);
-    this.events.once('shutdown', () => this.scale.off('resize', this.applyResponsiveScale, this));
-    this.applyResponsiveScale();
-
     this.refreshFromRegistry();
-  }
-
-  private applyResponsiveScale() {
-    if (!this.cameras?.main) return;
-    const dpr = Math.round(window.devicePixelRatio || 1);
-    this.cameras.main.setZoom(dpr);
-    this.cameras.main.centerOn(GAME_WIDTH / 2, GAME_HEIGHT / 2);
   }
 
   private onDeckCountChanged(count: number, animate: boolean) {
@@ -135,12 +124,11 @@ export class UIScene extends Phaser.Scene {
 
     if (animate && hasCards) {
       // Pop animation on the top card to signal a draw happened
-      const dpr = Math.round(window.devicePixelRatio || 1);
       this.tweens.killTweensOf(this.deckTopCard);
       this.tweens.add({
         targets: this.deckTopCard,
-        scaleX: 0.88 / dpr,
-        scaleY: 0.88 / dpr,
+        scaleX: 0.88,
+        scaleY: 0.88,
         duration: 70,
         yoyo: true,
         ease: 'Quad.easeOut',

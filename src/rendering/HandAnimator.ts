@@ -40,14 +40,13 @@ export class HandAnimator {
       card.setDepth(finalDepth);
       this.handCards.push(card);
 
-      const dpr = Math.round(window.devicePixelRatio || 1);
       this.scene.tweens.add({
         targets: card,
         x: finalX,
         y: finalY,
         angle: finalAngle,
-        scaleX: HAND_CARD_SCALE / dpr,
-        scaleY: HAND_CARD_SCALE / dpr,
+        scaleX: HAND_CARD_SCALE,
+        scaleY: HAND_CARD_SCALE,
         duration: 260,
         delay: i * 75,
         ease: 'Cubic.easeOut',
@@ -59,8 +58,8 @@ export class HandAnimator {
           card.setDepth(finalDepth);
           this.scene.tweens.add({
             targets: card,
-            scaleX: HAND_CARD_SCALE * 1.08 / dpr,
-            scaleY: HAND_CARD_SCALE * 1.08 / dpr,
+            scaleX: HAND_CARD_SCALE * 1.08,
+            scaleY: HAND_CARD_SCALE * 1.08,
             duration: 60,
             yoyo: true,
             ease: 'Quad.easeOut',
