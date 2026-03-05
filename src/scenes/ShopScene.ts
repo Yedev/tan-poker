@@ -3,7 +3,7 @@ import { GameState } from '../state/GameState';
 import { AllEnhanceCards } from '../cards/enhance';
 import { EnhanceCard } from '../gameobjects/EnhanceCard';
 import type { EnhanceCardDef } from '../types/card';
-import { ENHANCE_SLOT_SIZE, BOARD_LAYOUT, GAME_WIDTH, GAME_HEIGHT } from '../config';
+import { ENHANCE_SLOT_SIZE, BOARD_LAYOUT } from '../config';
 import { Logger } from '../utils/Logger';
 
 const INVENTORY_SIZE = 3;
@@ -65,16 +65,6 @@ export class ShopScene extends Phaser.Scene {
       this.scene.start('BattleScene', { level: this.level });
     });
 
-    this.scale.on('resize', this.applyResponsiveScale, this);
-    this.events.once('shutdown', () => this.scale.off('resize', this.applyResponsiveScale, this));
-    this.applyResponsiveScale();
-  }
-
-  private applyResponsiveScale() {
-    if (!this.cameras?.main) return;
-    const dpr = Math.round(window.devicePixelRatio || 1);
-    this.cameras.main.setZoom(dpr);
-    this.cameras.main.centerOn(GAME_WIDTH / 2, GAME_HEIGHT / 2);
   }
 
   private createLayerSlots() {

@@ -1,7 +1,6 @@
 import Phaser from 'phaser';
 import { GameState } from '../state/GameState';
 import { GameEventSystem } from '../events/GameEventSystem';
-import { GAME_WIDTH, GAME_HEIGHT } from '../config';
 
 export class GameOverScene extends Phaser.Scene {
   constructor() {
@@ -30,15 +29,5 @@ export class GameOverScene extends Phaser.Scene {
     btn.on('pointerout', () => btn.clearTint());
     btn.on('pointerup', () => this.scene.start('TitleScene'));
 
-    this.scale.on('resize', this.applyResponsiveScale, this);
-    this.events.once('shutdown', () => this.scale.off('resize', this.applyResponsiveScale, this));
-    this.applyResponsiveScale();
-  }
-
-  private applyResponsiveScale() {
-    if (!this.cameras?.main) return;
-    const dpr = Math.round(window.devicePixelRatio || 1);
-    this.cameras.main.setZoom(dpr);
-    this.cameras.main.centerOn(GAME_WIDTH / 2, GAME_HEIGHT / 2);
   }
 }

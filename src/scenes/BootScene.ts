@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import {
   CARD_WIDTH, CARD_HEIGHT, SLOT_WIDTH, SLOT_HEIGHT, ENHANCE_SLOT_SIZE,
-  SUITS, SUIT_SYMBOLS, SUIT_COLORS, RANK_LABELS, GAME_WIDTH, GAME_HEIGHT,
+  SUITS, SUIT_SYMBOLS, SUIT_COLORS, RANK_LABELS,
 } from '../config';
 
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
@@ -18,10 +18,9 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
   ctx.closePath();
 }
 
-function makeSlotTexture(scene: Phaser.Scene, key: string, w: number, h: number, border: string, fill: string, dpr: number) {
-  const ct = scene.textures.createCanvas(key, w * dpr, h * dpr)!;
+function makeSlotTexture(scene: Phaser.Scene, key: string, w: number, h: number, border: string, fill: string) {
+  const ct = scene.textures.createCanvas(key, w, h)!;
   const ctx = ct.getContext();
-  ctx.scale(dpr, dpr);
   ctx.fillStyle = fill;
   ctx.globalAlpha = 0.25;
   roundRect(ctx, 0, 0, w, h, 6);
@@ -35,10 +34,9 @@ function makeSlotTexture(scene: Phaser.Scene, key: string, w: number, h: number,
   ct.refresh();
 }
 
-function makeButtonTexture(scene: Phaser.Scene, key: string, w: number, h: number, bg: string, label: string, dpr: number) {
-  const ct = scene.textures.createCanvas(key, w * dpr, h * dpr)!;
+function makeButtonTexture(scene: Phaser.Scene, key: string, w: number, h: number, bg: string, label: string) {
+  const ct = scene.textures.createCanvas(key, w, h)!;
   const ctx = ct.getContext();
-  ctx.scale(dpr, dpr);
   ctx.fillStyle = bg;
   roundRect(ctx, 0, 0, w, h, 6);
   ctx.fill();
@@ -60,10 +58,6 @@ export class BootScene extends Phaser.Scene {
   }
 
   create() {
-    const dpr = Math.round(window.devicePixelRatio || 1);
-    this.cameras.main.setZoom(dpr);
-    this.cameras.main.centerOn(GAME_WIDTH / 2, GAME_HEIGHT / 2);
-
     this.add.text(640, 340, '叠牌 · Loading...', {
       fontSize: '28px', color: '#ffffff', fontFamily: 'monospace',
     }).setOrigin(0.5);
@@ -76,16 +70,14 @@ export class BootScene extends Phaser.Scene {
   }
 
   private generateAllTextures() {
-    const dpr = Math.round(window.devicePixelRatio || 1);
     const W = CARD_WIDTH;
     const H = CARD_HEIGHT;
 
     for (const suit of SUITS) {
       for (let rank = 2; rank <= 14; rank++) {
         const key = `card_${suit}_${rank}`;
-        const ct = this.textures.createCanvas(key, W * dpr, H * dpr)!;
+        const ct = this.textures.createCanvas(key, W, H)!;
         const ctx = ct.getContext();
-        ctx.scale(dpr, dpr);
         const isRed = suit === 'hearts' || suit === 'diamonds';
         const color = SUIT_COLORS[suit];
 
@@ -121,9 +113,8 @@ export class BootScene extends Phaser.Scene {
     }
 
     {
-      const ct = this.textures.createCanvas('card_back', W * dpr, H * dpr)!;
+      const ct = this.textures.createCanvas('card_back', W, H)!;
       const ctx = ct.getContext();
-      ctx.scale(dpr, dpr);
       ctx.fillStyle = '#2a4858';
       roundRect(ctx, 0, 0, W, H, 4);
       ctx.fill();
@@ -146,22 +137,21 @@ export class BootScene extends Phaser.Scene {
       ct.refresh();
     }
 
-    makeSlotTexture(this, 'slot_bg', SLOT_WIDTH, SLOT_HEIGHT, '#5a6a7a', '#3a4a5a', dpr);
-    makeSlotTexture(this, 'slot_hover', SLOT_WIDTH, SLOT_HEIGHT, '#5a9aba', '#3a6a8a', dpr);
-    makeSlotTexture(this, 'slot_danger', SLOT_WIDTH, SLOT_HEIGHT, '#ba5a5a', '#8a3a3a', dpr);
-    makeSlotTexture(this, 'enhance_slot_bg', ENHANCE_SLOT_SIZE, ENHANCE_SLOT_SIZE, '#8a7a4a', '#5a4a2a', dpr);
+    makeSlotTexture(this, 'slot_bg', SLOT_WIDTH, SLOT_HEIGHT, '#5a6a7a', '#3a4a5a');
+    makeSlotTexture(this, 'slot_hover', SLOT_WIDTH, SLOT_HEIGHT, '#5a9aba', '#3a6a8a');
+    makeSlotTexture(this, 'slot_danger', SLOT_WIDTH, SLOT_HEIGHT, '#ba5a5a', '#8a3a3a');
+    makeSlotTexture(this, 'enhance_slot_bg', ENHANCE_SLOT_SIZE, ENHANCE_SLOT_SIZE, '#8a7a4a', '#5a4a2a');
 
-    makeButtonTexture(this, 'btn_score', 110, 40, '#2a6a2a', '计分', dpr);
-    makeButtonTexture(this, 'btn_discard', 110, 40, '#6a3a2a', '弃牌', dpr);
-    makeButtonTexture(this, 'btn_start', 160, 50, '#3a3a8a', '开始游戏', dpr);
-    makeButtonTexture(this, 'btn_continue', 140, 40, '#3a6a3a', '继续', dpr);
-    makeButtonTexture(this, 'btn_restart', 140, 40, '#6a3a3a', '重新开始', dpr);
-    makeButtonTexture(this, 'btn_shop_leave', 140, 40, '#3a5a6a', '下一关', dpr);
+    makeButtonTexture(this, 'btn_score', 110, 40, '#2a6a2a', '计分');
+    makeButtonTexture(this, 'btn_discard', 110, 40, '#6a3a2a', '弃牌');
+    makeButtonTexture(this, 'btn_start', 160, 50, '#3a3a8a', '开始游戏');
+    makeButtonTexture(this, 'btn_continue', 140, 40, '#3a6a3a', '继续');
+    makeButtonTexture(this, 'btn_restart', 140, 40, '#6a3a3a', '重新开始');
+    makeButtonTexture(this, 'btn_shop_leave', 140, 40, '#3a5a6a', '下一关');
 
     {
-      const ct = this.textures.createCanvas('particle_spark', 8 * dpr, 8 * dpr)!;
+      const ct = this.textures.createCanvas('particle_spark', 8, 8)!;
       const ctx = ct.getContext();
-      ctx.scale(dpr, dpr);
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
       ctx.arc(4, 4, 3, 0, Math.PI * 2);
@@ -170,9 +160,8 @@ export class BootScene extends Phaser.Scene {
     }
 
     {
-      const ct = this.textures.createCanvas('weight_icon', 20 * dpr, 20 * dpr)!;
+      const ct = this.textures.createCanvas('weight_icon', 20, 20)!;
       const ctx = ct.getContext();
-      ctx.scale(dpr, dpr);
       ctx.fillStyle = '#aaaaaa';
       ctx.beginPath();
       ctx.moveTo(10, 2);

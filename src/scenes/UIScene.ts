@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type { GamePhase } from '../types/game';
 import { EventBus } from '../events/EventBus';
-import { DECK_PILE_X, DECK_PILE_Y, CARD_WIDTH, CARD_HEIGHT, GAME_WIDTH, GAME_HEIGHT } from '../config';
+import { DECK_PILE_X, DECK_PILE_Y, CARD_WIDTH, CARD_HEIGHT } from '../config';
 
 export class UIScene extends Phaser.Scene {
   private scoreText!: Phaser.GameObjects.Text;
@@ -36,42 +36,25 @@ export class UIScene extends Phaser.Scene {
   }
 
   create() {
-    const ts = { fontSize: '16px', color: '#cccccc', fontFamily: 'monospace' };
+    const mono = { fontFamily: 'monospace' };
 
-    this.add.text(20, 15, '分数', { fontSize: '12px', color: '#888888', fontFamily: 'monospace' });
-    this.scoreText = this.add.text(20, 32, '0', { fontSize: '28px', color: '#ffdd88', fontFamily: 'monospace' });
+    // ── Left info panel ──
+    this.add.text(15, 15, '分数', { fontSize: '12px', color: '#888888', ...mono });
+    this.scoreText = this.add.text(15, 30, '0', { fontSize: '30px', color: '#ffdd88', ...mono });
 
-    this.add.text(20, 68, '目标', { fontSize: '12px', color: '#888888', fontFamily: 'monospace' });
-    this.targetText = this.add.text(20, 82, '0', { ...ts, color: '#aabbcc' });
+    this.add.text(15, 72, '目标', { fontSize: '12px', color: '#888888', ...mono });
+    this.targetText = this.add.text(15, 87, '0', { fontSize: '18px', color: '#aabbcc', ...mono });
 
-    this.chancesText = this.add.text(200, 15, '计分次数: 3', ts);
-    this.discardText = this.add.text(200, 40, '弃牌次数: 2', ts);
-    this.foundationText = this.add.text(200, 65, '基层承重: ∞', { ...ts, fontSize: '14px', color: '#999999' });
+    this.chancesText = this.add.text(15, 122, '计分次数: 3', { fontSize: '14px', color: '#cccccc', ...mono });
+    this.discardText = this.add.text(15, 145, '弃牌次数: 2', { fontSize: '14px', color: '#cccccc', ...mono });
+    this.foundationText = this.add.text(15, 170, '基层承重: ∞', { fontSize: '13px', color: '#888888', ...mono });
+    this.goldText = this.add.text(15, 195, '金币: 0', { fontSize: '16px', color: '#ffdd44', ...mono });
 
-    this.add.text(420, 15, '金', { fontSize: '12px', color: '#888888', fontFamily: 'monospace' });
-    this.goldText = this.add.text(420, 32, '金币: 0', { fontSize: '18px', color: '#ffdd44', fontFamily: 'monospace' });
+    this.phaseText = this.add.text(15, 228, '', { fontSize: '11px', color: '#555555', ...mono });
 
-    this.phaseText = this.add.text(1260, 15, '', {
-      fontSize: '12px', color: '#666666', fontFamily: 'monospace',
-    }).setOrigin(1, 0);
-
-    this.scoreBtn = this.add.image(1180, 580, 'btn_score')
-      .setDisplaySize(110, 40)
-      .setInteractive({ useHandCursor: true })
-      .on('pointerup', () => EventBus.emit('ui:score-requested'))
-      .on('pointerover', () => this.scoreBtn.setTint(0xaaffaa))
-      .on('pointerout', () => this.scoreBtn.clearTint());
-
-    this.discardBtn = this.add.image(1180, 630, 'btn_discard')
-      .setDisplaySize(110, 40)
-      .setInteractive({ useHandCursor: true })
-      .on('pointerup', () => EventBus.emit('ui:discard-requested'))
-      .on('pointerover', () => this.discardBtn.setTint(0xffaaaa))
-      .on('pointerout', () => this.discardBtn.clearTint());
-
-    // ── Deck Pile Display (bottom-right) ──
-    this.add.text(DECK_PILE_X, DECK_PILE_Y - 54, '牌堆', {
-      fontSize: '12px', color: '#888888', fontFamily: 'monospace',
+    // ── Right column: deck pile ──
+    this.add.text(DECK_PILE_X, DECK_PILE_Y - 48, '牌堆', {
+      fontSize: '12px', color: '#888888', ...mono,
     }).setOrigin(0.5);
 
     // Stacked card-back images (depth illusion)
@@ -80,7 +63,7 @@ export class UIScene extends Phaser.Scene {
     this.deckTopCard = this.add.image(DECK_PILE_X, DECK_PILE_Y, 'card_back').setDisplaySize(CARD_WIDTH, CARD_HEIGHT);
 
     // Count badge below the pile
-    this.deckCountText = this.add.text(DECK_PILE_X, DECK_PILE_Y + 54, '×0', {
+    this.deckCountText = this.add.text(DECK_PILE_X, DECK_PILE_Y + 48, '×0', {
       fontSize: '16px', color: '#dddddd', fontFamily: 'monospace',
       stroke: '#000000', strokeThickness: 2,
     }).setOrigin(0.5);
@@ -90,6 +73,21 @@ export class UIScene extends Phaser.Scene {
       fontSize: '18px', color: '#886644', fontFamily: 'monospace',
       stroke: '#000000', strokeThickness: 2,
     }).setOrigin(0.5).setAlpha(0).setDepth(1);
+
+    // ── Right column: action buttons ──
+    this.scoreBtn = this.add.image(1190, 480, 'btn_score')
+      .setDisplaySize(110, 40)
+      .setInteractive({ useHandCursor: true })
+      .on('pointerup', () => EventBus.emit('ui:score-requested'))
+      .on('pointerover', () => this.scoreBtn.setTint(0xaaffaa))
+      .on('pointerout', () => this.scoreBtn.clearTint());
+
+    this.discardBtn = this.add.image(1190, 528, 'btn_discard')
+      .setDisplaySize(110, 40)
+      .setInteractive({ useHandCursor: true })
+      .on('pointerup', () => EventBus.emit('ui:discard-requested'))
+      .on('pointerover', () => this.discardBtn.setTint(0xffaaaa))
+      .on('pointerout', () => this.discardBtn.clearTint());
 
     // ── Registry Listeners ──
     // Defensively remove any stale listeners from a previous run of this scene
@@ -110,18 +108,7 @@ export class UIScene extends Phaser.Scene {
     // automatically when the scene is stopped, paused, or destroyed.
     this.events.once('shutdown', this.removeRegistryListeners, this);
 
-    this.scale.on('resize', this.applyResponsiveScale, this);
-    this.events.once('shutdown', () => this.scale.off('resize', this.applyResponsiveScale, this));
-    this.applyResponsiveScale();
-
     this.refreshFromRegistry();
-  }
-
-  private applyResponsiveScale() {
-    if (!this.cameras?.main) return;
-    const dpr = Math.round(window.devicePixelRatio || 1);
-    this.cameras.main.setZoom(dpr);
-    this.cameras.main.centerOn(GAME_WIDTH / 2, GAME_HEIGHT / 2);
   }
 
   private onDeckCountChanged(count: number, animate: boolean) {
@@ -135,12 +122,11 @@ export class UIScene extends Phaser.Scene {
 
     if (animate && hasCards) {
       // Pop animation on the top card to signal a draw happened
-      const dpr = Math.round(window.devicePixelRatio || 1);
       this.tweens.killTweensOf(this.deckTopCard);
       this.tweens.add({
         targets: this.deckTopCard,
-        scaleX: 0.88 / dpr,
-        scaleY: 0.88 / dpr,
+        scaleX: 0.88,
+        scaleY: 0.88,
         duration: 70,
         yoyo: true,
         ease: 'Quad.easeOut',

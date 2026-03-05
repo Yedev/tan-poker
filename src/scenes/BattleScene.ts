@@ -21,7 +21,7 @@ import { EnhanceCard } from '../gameobjects/EnhanceCard';
 import { ChallengeCard } from '../gameobjects/ChallengeCard';
 import {
   BOARD_LAYOUT, LAYER_SLOT_COUNTS, SCORE_CHANCES_PER_LEVEL, DISCARD_CHANCES_PER_ROUND,
-  DECK_PILE_X, DECK_PILE_Y, SLOT_HEIGHT, GAME_WIDTH, GAME_HEIGHT,
+  DECK_PILE_X, DECK_PILE_Y, SLOT_HEIGHT,
   getTargetScore,
 } from '../config';
 import { Logger } from '../utils/Logger';
@@ -89,16 +89,6 @@ export class BattleScene extends Phaser.Scene {
 
     this.phaseManager.transitionTo('LEVEL_START');
 
-    this.scale.on('resize', this.applyResponsiveScale, this);
-    this.events.once('shutdown', () => this.scale.off('resize', this.applyResponsiveScale, this));
-    this.applyResponsiveScale();
-  }
-
-  private applyResponsiveScale() {
-    if (!this.cameras?.main) return;
-    const dpr = Math.round(window.devicePixelRatio || 1);
-    this.cameras.main.setZoom(dpr);
-    this.cameras.main.centerOn(GAME_WIDTH / 2, GAME_HEIGHT / 2);
   }
 
   private initBoard() {
@@ -147,7 +137,7 @@ export class BattleScene extends Phaser.Scene {
         new EnhanceCard(this, layout.enhanceSlot.x, layout.y, enhCardDef).setDepth(3);
       }
 
-      const wt = this.add.text(layout.enhanceSlot.x - 40, layout.y - 8, '', {
+      const wt = this.add.text(layout.enhanceSlot.x, layout.y - 38, '', {
         fontSize: '12px', color: '#aaaaaa', fontFamily: 'monospace',
       }).setOrigin(0.5).setDepth(5);
       this.weightTexts.push(wt);
@@ -164,14 +154,14 @@ export class BattleScene extends Phaser.Scene {
       this.layerHighlightRects.push(rect);
     }
 
-    const gs = GameState.getInstance();
-    const foundLabel = gs.foundation === Infinity ? '∞' : `${gs.foundation}`;
-    this.add.text(640, 490, `基层承重: ${foundLabel}`, {
-      fontSize: '14px', color: '#7a8a7a', fontFamily: 'monospace',
+    // Column header for enhance slots
+    this.add.text(900, 82, '增强', {
+      fontSize: '12px', color: '#886633', fontFamily: 'monospace',
     }).setOrigin(0.5);
 
+    const gs = GameState.getInstance();
     gs.challengeCards.forEach((cardDef, index) => {
-      new ChallengeCard(this, 100, 150 + index * 100, cardDef).setDepth(3);
+      new ChallengeCard(this, 80, 310 + index * 90, cardDef).setDepth(3);
     });
   }
 
@@ -346,14 +336,13 @@ export class BattleScene extends Phaser.Scene {
     this.pendingFlyCount++;
     this.isAnimating = true;
     card.setDepth(100);
-    const dpr = Math.round(window.devicePixelRatio || 1);
     this.tweens.add({
       targets: card,
       x: slot.x,
       y: slot.y,
       angle: 0,
-      scaleX: 1 / dpr,
-      scaleY: 1 / dpr,
+      scaleX: 1,
+      scaleY: 1,
       duration: 280,
       ease: 'Cubic.easeOut',
       onComplete: () => {
@@ -627,15 +616,14 @@ export class BattleScene extends Phaser.Scene {
       const layout = BOARD_LAYOUT.layers[layerIndex];
       const centerX = layout.pokerSlots.reduce((s, p) => s + p.x, 0) / layout.pokerSlots.length;
 
-      const scoreDpr = Math.round(window.devicePixelRatio || 1);
       for (const slot of this.pokerSlots[layerIndex]) {
         const key = `${layerIndex}-${slot.slotIndex}`;
         const cardObj = this.boardCardObjects.get(key);
         if (cardObj) {
           this.tweens.add({
             targets: cardObj,
-            scaleX: 1.15 / scoreDpr,
-            scaleY: 1.15 / scoreDpr,
+            scaleX: 1.15,
+            scaleY: 1.15,
             duration: 150,
             yoyo: true,
           });
@@ -689,7 +677,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private playGoldEarnedAnimation(amount: number) {
-    const txt = this.add.text(420, 55, `+${amount} 金币`, {
+    const txt = this.add.text(80, 195, `+${amount} 金币`, {
       fontSize: '16px', color: '#ffdd44', fontFamily: 'monospace',
       stroke: '#000000', strokeThickness: 2,
     }).setOrigin(0.5).setDepth(50);
