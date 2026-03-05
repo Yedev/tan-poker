@@ -57,6 +57,8 @@ export const BOARD_LAYOUT = buildBoardLayout();
 export const HAND_Y = 600;
 export const HAND_SPACING = 68;
 export const HAND_CARD_SCALE = 1.4;
+export const HAND_CARD_WIDTH = Math.round(CARD_WIDTH * HAND_CARD_SCALE);   // 90
+export const HAND_CARD_HEIGHT = Math.round(CARD_HEIGHT * HAND_CARD_SCALE); // 126
 
 // Deck pile display position (right column)
 export const DECK_PILE_X = 1190;

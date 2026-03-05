@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import {
-  CARD_WIDTH, CARD_HEIGHT, SLOT_WIDTH, SLOT_HEIGHT, ENHANCE_SLOT_SIZE,
+  CARD_WIDTH, CARD_HEIGHT, HAND_CARD_WIDTH, HAND_CARD_HEIGHT,
+  SLOT_WIDTH, SLOT_HEIGHT, ENHANCE_SLOT_SIZE,
   SUITS, SUIT_SYMBOLS, SUIT_COLORS, RANK_LABELS,
 } from '../config';
 
@@ -70,9 +71,12 @@ export class BootScene extends Phaser.Scene {
   }
 
   private generateAllTextures() {
-    const W = CARD_WIDTH;
-    const H = CARD_HEIGHT;
-    // Draw card textures at 2× so they stay sharp when scaled up in hand
+    // Draw card textures at HAND_CARD size (the largest display size) so hand
+    // cards render at native resolution with no upscaling. Other contexts
+    // (deck pile, board slots) scale down, which stays sharp.
+    const W = HAND_CARD_WIDTH;   // 90
+    const H = HAND_CARD_HEIGHT;  // 126
+    // Additional 2× supersampling so even the bounce animation stays sharp.
     const TX = 2;
 
     for (const suit of SUITS) {
@@ -85,31 +89,31 @@ export class BootScene extends Phaser.Scene {
         const color = SUIT_COLORS[suit];
 
         ctx.fillStyle = '#f5f0e1';
-        roundRect(ctx, 0, 0, W, H, 8);
+        roundRect(ctx, 0, 0, W, H, 11);
         ctx.fill();
         ctx.strokeStyle = isRed ? '#aa3333' : '#333333';
         ctx.lineWidth = 1.5;
-        roundRect(ctx, 1, 1, W - 2, H - 2, 7);
+        roundRect(ctx, 1, 1, W - 2, H - 2, 10);
         ctx.stroke();
 
         ctx.fillStyle = color;
-        ctx.font = 'bold 15px monospace';
+        ctx.font = 'bold 21px monospace';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'top';
-        ctx.fillText(RANK_LABELS[rank], 4, 3);
+        ctx.fillText(RANK_LABELS[rank], 6, 4);
 
-        ctx.font = '12px serif';
-        ctx.fillText(SUIT_SYMBOLS[suit], 4, 19);
+        ctx.font = '17px serif';
+        ctx.fillText(SUIT_SYMBOLS[suit], 6, 27);
 
-        ctx.font = '26px serif';
+        ctx.font = '36px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(SUIT_SYMBOLS[suit], W / 2, H / 2 + 4);
+        ctx.fillText(SUIT_SYMBOLS[suit], W / 2, H / 2 + 6);
 
-        ctx.font = 'bold 10px monospace';
+        ctx.font = 'bold 14px monospace';
         ctx.textAlign = 'right';
         ctx.textBaseline = 'bottom';
-        ctx.fillText(RANK_LABELS[rank] + SUIT_SYMBOLS[suit], W - 3, H - 3);
+        ctx.fillText(RANK_LABELS[rank] + SUIT_SYMBOLS[suit], W - 4, H - 4);
 
         ct.refresh();
       }
@@ -120,21 +124,21 @@ export class BootScene extends Phaser.Scene {
       const ctx = ct.getContext();
       ctx.scale(TX, TX);
       ctx.fillStyle = '#2a4858';
-      roundRect(ctx, 0, 0, W, H, 8);
+      roundRect(ctx, 0, 0, W, H, 11);
       ctx.fill();
       ctx.strokeStyle = '#c8a060';
-      ctx.lineWidth = 2;
-      roundRect(ctx, 3, 3, W - 6, H - 6, 3);
+      ctx.lineWidth = 3;
+      roundRect(ctx, 4, 4, W - 8, H - 8, 4);
       ctx.stroke();
       ctx.strokeStyle = '#c8a060';
       ctx.lineWidth = 1;
-      roundRect(ctx, 7, 7, W - 14, H - 14, 2);
+      roundRect(ctx, 10, 10, W - 20, H - 20, 3);
       ctx.stroke();
       for (let i = 0; i < 4; i++) {
         for (let j = 0; j < 6; j++) {
           if ((i + j) % 2 === 0) {
             ctx.fillStyle = '#3a5868';
-            ctx.fillRect(12 + i * 10, 12 + j * 11, 8, 9);
+            ctx.fillRect(17 + i * 14, 17 + j * 16, 11, 13);
           }
         }
       }
