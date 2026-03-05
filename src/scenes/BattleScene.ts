@@ -21,7 +21,7 @@ import { EnhanceCard } from '../gameobjects/EnhanceCard';
 import { ChallengeCard } from '../gameobjects/ChallengeCard';
 import {
   BOARD_LAYOUT, BOARD_TOP_Y, LAYER_SLOT_COUNTS, SCORE_CHANCES_PER_LEVEL, DISCARD_CHANCES_PER_ROUND,
-  DECK_PILE_X, DECK_PILE_Y, SLOT_WIDTH, SLOT_HEIGHT, CARD_WIDTH, CARD_HEIGHT,
+  DECK_PILE_X, DECK_PILE_Y, SLOT_WIDTH, SLOT_HEIGHT,
   getTargetScore,
 } from '../config';
 import { Logger } from '../utils/Logger';
@@ -333,6 +333,11 @@ export class BattleScene extends Phaser.Scene {
     this.updateLayerHighlights();
 
     // Fly animation to slot
+    // Compute scale so the card displays at exactly slot dimensions,
+    // accounting for the 2× texture resolution used by BootScene.
+    const targetScaleX = card.scaleX * (SLOT_WIDTH / card.displayWidth);
+    const targetScaleY = card.scaleY * (SLOT_HEIGHT / card.displayHeight);
+
     this.pendingFlyCount++;
     this.isAnimating = true;
     card.setDepth(100);
@@ -341,8 +346,8 @@ export class BattleScene extends Phaser.Scene {
       x: slot.x,
       y: slot.y,
       angle: 0,
-      scaleX: SLOT_WIDTH / CARD_WIDTH,
-      scaleY: SLOT_HEIGHT / CARD_HEIGHT,
+      scaleX: targetScaleX,
+      scaleY: targetScaleY,
       duration: 280,
       ease: 'Cubic.easeOut',
       onComplete: () => {
