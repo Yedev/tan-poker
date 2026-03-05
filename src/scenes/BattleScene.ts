@@ -42,6 +42,7 @@ export class BattleScene extends Phaser.Scene {
 
   private weightTexts: Phaser.GameObjects.Text[] = [];
   private layerHighlightRects: Phaser.GameObjects.Rectangle[] = [];
+  private hoverPreviewCard: Card | null = null;
 
   constructor() {
     super('BattleScene');
@@ -168,15 +169,19 @@ export class BattleScene extends Phaser.Scene {
 
   private updateLayerHighlights() {
     const selected = this.handAnimator.handCards.filter(c => c.isSelected);
-    const canInteract = selected.length > 0 && !this.isAnimating && this.phaseManager.getPhase() === 'PLAYER_PLACING';
+    // Include hoverPreviewCard (if unselected) to give a placement hint on hover
+    const preview = (this.hoverPreviewCard && !this.hoverPreviewCard.isSelected)
+      ? [...selected, this.hoverPreviewCard]
+      : selected;
+    const canInteract = preview.length > 0 && !this.isAnimating && this.phaseManager.getPhase() === 'PLAYER_PLACING';
     const gs = GameState.getInstance();
     const foundation = gs.foundation + gs.tempFoundationBonus;
 
     for (let li = 0; li < this.layerHighlightRects.length; li++) {
       const emptySlots = this.pokerSlots[li].filter(s => !s.isOccupied);
       const canPlace = canInteract
-        && emptySlots.length >= selected.length
-        && this.engine.cardsPlayedThisRound + selected.length <= PLAY_CARDS_LIMIT;
+        && emptySlots.length >= preview.length
+        && this.engine.cardsPlayedThisRound + preview.length <= PLAY_CARDS_LIMIT;
       const rect = this.layerHighlightRects[li];
 
       if (!canPlace) {
@@ -188,13 +193,13 @@ export class BattleScene extends Phaser.Scene {
         continue;
       }
 
-      // Simulate placing selected cards into the first N empty slots
+      // Simulate placing preview cards into the first N empty slots
       const simLayers = this.engine.board.map(l => ({
         pokerSlots: [...l.pokerSlots],
         overrideWeight: l.overrideWeight,
       }));
-      emptySlots.slice(0, selected.length).forEach((s, idx) => {
-        simLayers[li].pokerSlots[s.slotIndex] = selected[idx].cardData;
+      emptySlots.slice(0, preview.length).forEach((s, idx) => {
+        simLayers[li].pokerSlots[s.slotIndex] = preview[idx].cardData;
       });
       const collapsed = checkCollapse(simLayers, foundation).collapsed;
 
@@ -251,6 +256,22 @@ export class BattleScene extends Phaser.Scene {
 
   private setupDragHandlers() {
     this.input.dragDistanceThreshold = 8;
+
+    this.input.on('gameobjectover', (_ptr: Phaser.Input.Pointer, obj: Phaser.GameObjects.GameObject) => {
+      if (this.isAnimating) return;
+      if (this.phaseManager.getPhase() !== 'PLAYER_PLACING') return;
+      if (obj instanceof Card && obj.location === 'hand' && !obj.isSelected) {
+        this.hoverPreviewCard = obj;
+        this.updateLayerHighlights();
+      }
+    });
+
+    this.input.on('gameobjectout', (_ptr: Phaser.Input.Pointer, obj: Phaser.GameObjects.GameObject) => {
+      if (obj === this.hoverPreviewCard) {
+        this.hoverPreviewCard = null;
+        this.updateLayerHighlights();
+      }
+    });
 
     this.input.on('gameobjectup', (_ptr: Phaser.Input.Pointer, obj: Phaser.GameObjects.GameObject) => {
       if (this.isAnimating) return;
