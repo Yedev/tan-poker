@@ -54,6 +54,53 @@ function makeButtonTexture(scene: Phaser.Scene, key: string, w: number, h: numbe
   ct.refresh();
 }
 
+/** Balatro-style raised (3-D) button with shadow, face, highlight strip. */
+function makeRaisedButton(
+  scene: Phaser.Scene, key: string, w: number, h: number,
+  shadowColor: string, faceColor: string, label: string, fontSize = 19,
+) {
+  const lift = 5;
+  const r = 9;
+  const ct = scene.textures.createCanvas(key, w, h)!;
+  const ctx = ct.getContext();
+
+  // Bottom shadow layer
+  ctx.fillStyle = shadowColor;
+  roundRect(ctx, 0, lift, w, h - lift, r);
+  ctx.fill();
+
+  // Face (raised, slightly lighter)
+  ctx.fillStyle = faceColor;
+  roundRect(ctx, 0, 0, w, h - lift, r);
+  ctx.fill();
+
+  // Top highlight strip
+  ctx.fillStyle = 'rgba(255,255,255,0.18)';
+  ctx.beginPath();
+  ctx.rect(3, 3, w - 6, Math.round((h - lift) * 0.42));
+  ctx.fill();
+
+  // Border
+  ctx.strokeStyle = 'rgba(255,255,255,0.28)';
+  ctx.lineWidth = 1.5;
+  roundRect(ctx, 1, 1, w - 2, h - lift - 1, r - 1);
+  ctx.stroke();
+
+  // Label
+  ctx.fillStyle = '#ffffff';
+  ctx.font = `bold ${fontSize}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.shadowColor = 'rgba(0,0,0,0.5)';
+  ctx.shadowBlur = 4;
+  ctx.shadowOffsetY = 1;
+  ctx.fillText(label, w / 2, (h - lift) / 2 + 1);
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetY = 0;
+
+  ct.refresh();
+}
+
 export class BootScene extends Phaser.Scene {
   constructor() {
     super('BootScene');
@@ -151,8 +198,8 @@ export class BootScene extends Phaser.Scene {
     makeSlotTexture(this, 'slot_danger', SLOT_WIDTH, SLOT_HEIGHT, '#ba5a5a', '#8a3a3a');
     makeSlotTexture(this, 'enhance_slot_bg', ENHANCE_SLOT_SIZE, ENHANCE_SLOT_SIZE, '#8a7a4a', '#5a4a2a');
 
-    makeButtonTexture(this, 'btn_score', 110, 40, '#2a6a2a', '计分');
-    makeButtonTexture(this, 'btn_discard', 110, 40, '#6a3a2a', '弃牌');
+    makeRaisedButton(this, 'btn_score',   174, 52, '#145228', '#1e7a3c', '计分', 20);
+    makeRaisedButton(this, 'btn_discard', 174, 46, '#6a2210', '#b04018', '弃牌', 18);
     makeButtonTexture(this, 'btn_start', 160, 50, '#3a3a8a', '开始游戏');
     makeButtonTexture(this, 'btn_continue', 140, 40, '#3a6a3a', '继续');
     makeButtonTexture(this, 'btn_restart', 140, 40, '#6a3a3a', '重新开始');

@@ -30,8 +30,8 @@ export function getTargetScore(level: number): number {
 
 export const LAYER_SLOT_COUNTS = [1, 2, 3, 4];
 
-export const BOARD_TOP_Y = 120;
-export const LAYER_SPACING = 110;
+export const BOARD_TOP_Y = 140;
+export const LAYER_SPACING = 100;
 // Center-to-center distance between adjacent poker slots in a row
 export const SLOT_SPACING = 80;
 
@@ -54,7 +54,7 @@ function buildBoardLayout() {
 
 export const BOARD_LAYOUT = buildBoardLayout();
 
-export const HAND_Y = 600;
+export const HAND_Y = 620;
 export const HAND_SPACING = 68;
 export const HAND_CARD_SCALE = 1.4;
 export const HAND_CARD_WIDTH = Math.round(CARD_WIDTH * HAND_CARD_SCALE);   // 90
