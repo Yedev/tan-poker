@@ -60,9 +60,9 @@ export const HAND_CARD_SCALE = 1.4;
 export const HAND_CARD_WIDTH = Math.round(CARD_WIDTH * HAND_CARD_SCALE);   // 90
 export const HAND_CARD_HEIGHT = Math.round(CARD_HEIGHT * HAND_CARD_SCALE); // 126
 
-// Deck pile display position (right column)
-export const DECK_PILE_X = 1190;
-export const DECK_PILE_Y = 300;
+// Deck pile display position (bottom-left corner)
+export const DECK_PILE_X = 100;
+export const DECK_PILE_Y = 600;
 
 export const SUITS = ['spades', 'hearts', 'clubs', 'diamonds'] as const;
 export const SUIT_SYMBOLS: Record<string, string> = {

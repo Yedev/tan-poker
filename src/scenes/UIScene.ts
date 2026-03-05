@@ -2,14 +2,19 @@ import Phaser from 'phaser';
 import type { GamePhase } from '../types/game';
 import { EventBus } from '../events/EventBus';
 import {
-  DECK_PILE_X, DECK_PILE_Y, CARD_WIDTH, CARD_HEIGHT,
+  DECK_PILE_X, DECK_PILE_Y,
   HAND_CARD_WIDTH, HAND_CARD_HEIGHT,
   PLAY_CARDS_LIMIT,
 } from '../config';
 
-// Left sidebar width (Balatro-style info panel)
+// Left info area (no background — transparent)
 const PANEL_W = 200;
-const PX = 14; // horizontal padding inside panel
+const PX = 14;
+
+// Bottom-right corner: score & discard buttons
+const BTN_X = 1155;
+const SCORE_BTN_Y = 627;
+const DISCARD_BTN_Y = 685;
 
 export class UIScene extends Phaser.Scene {
   private scoreText!: Phaser.GameObjects.Text;
@@ -54,113 +59,102 @@ export class UIScene extends Phaser.Scene {
     const serif = { fontFamily: 'serif' };
 
     // ══════════════════════════════════════════════════════════════════════
-    //  LEFT PANEL BACKGROUND
+    //  LEFT INFO AREA — transparent (no background panel)
     // ══════════════════════════════════════════════════════════════════════
-    const panelGfx = this.add.graphics();
-    // Dark gradient base
-    panelGfx.fillGradientStyle(0x0c1628, 0x0c1628, 0x091220, 0x091220, 1);
-    panelGfx.fillRect(0, 0, PANEL_W, 720);
-    // Right gold border
-    panelGfx.lineStyle(2, 0x9a7d2a, 0.65);
-    panelGfx.lineBetween(PANEL_W, 0, PANEL_W, 720);
 
-    // ── Level header bar ──────────────────────────────────────────────────
-    const HDR_H = 52;
-    const hdrGfx = this.add.graphics();
-    hdrGfx.fillGradientStyle(0xc8960a, 0xc8960a, 0x8b6510, 0x8b6510, 1);
-    hdrGfx.fillRect(0, 0, PANEL_W, HDR_H);
-    hdrGfx.lineStyle(1, 0xd4a830, 0.6);
-    hdrGfx.lineBetween(0, HDR_H, PANEL_W, HDR_H);
-
-    this.levelText = this.add.text(PANEL_W / 2, HDR_H / 2, '第 1 关', {
+    // ── Level text ────────────────────────────────────────────────────────
+    this.levelText = this.add.text(PANEL_W / 2, 26, '第 1 关', {
       fontSize: '21px', color: '#fff8e7', fontStyle: 'bold', ...serif,
+      stroke: '#000000', strokeThickness: 3,
     }).setOrigin(0.5);
 
-    // ══════════════════════════════════════════════════════════════════════
-    //  PANEL CONTENT
-    // ══════════════════════════════════════════════════════════════════════
-    let y = HDR_H + 10;
+    let y = 60;
 
     // ── Target score ──────────────────────────────────────────────────────
-    this.add.text(PX, y, '目标分数', { fontSize: '11px', color: '#6a7f90', ...mono });
+    this.add.text(PX, y, '目标分数', {
+      fontSize: '11px', color: '#6a7f90', ...mono,
+      stroke: '#000000', strokeThickness: 2,
+    });
     this.targetText = this.add.text(PANEL_W - PX, y + 1, '0', {
       fontSize: '19px', color: '#7aaabb', ...mono,
+      stroke: '#000000', strokeThickness: 2,
     }).setOrigin(1, 0);
 
-    y += 28;
-    this.addSep(y);
+    y += 35;
 
     // ── Current score ─────────────────────────────────────────────────────
-    y += 7;
-    this.add.text(PX, y, '当前分数', { fontSize: '11px', color: '#6a7f90', ...mono });
+    this.add.text(PX, y, '当前分数', {
+      fontSize: '11px', color: '#6a7f90', ...mono,
+      stroke: '#000000', strokeThickness: 2,
+    });
     this.scoreText = this.add.text(PANEL_W - PX, y + 2, '0', {
       fontSize: '36px', color: '#f5c518', fontStyle: 'bold', ...mono,
+      stroke: '#000000', strokeThickness: 3,
     }).setOrigin(1, 0);
 
-    y += 48;
-    this.addSep(y);
-
-    // ── Score / discard chances ───────────────────────────────────────────
-    y += 8;
-    this.add.text(PX, y, '计分', { fontSize: '13px', color: '#6699bb', ...mono });
-    this.chancesText = this.add.text(PANEL_W - PX, y, '3', {
-      fontSize: '22px', color: '#4db8ff', fontStyle: 'bold', ...mono,
-    }).setOrigin(1, 0);
-
-    y += 30;
-    this.add.text(PX, y, '弃牌', { fontSize: '13px', color: '#bb8855', ...mono });
-    this.discardText = this.add.text(PANEL_W - PX, y, '1', {
-      fontSize: '22px', color: '#ff9933', fontStyle: 'bold', ...mono,
-    }).setOrigin(1, 0);
-
-    y += 34;
-    this.addSep(y);
+    y += 56;
 
     // ── Foundation / gold ─────────────────────────────────────────────────
-    y += 8;
     this.foundationText = this.add.text(PX, y, '承重: ∞', {
       fontSize: '12px', color: '#557788', ...mono,
+      stroke: '#000000', strokeThickness: 2,
     });
     y += 20;
     this.goldText = this.add.text(PX, y, '◈  0', {
       fontSize: '15px', color: '#f5c518', ...mono,
+      stroke: '#000000', strokeThickness: 2,
     });
 
-    y += 28;
-    this.addSep(y);
+    y += 34;
 
     // ── Debug info (tiny) ─────────────────────────────────────────────────
-    y += 6;
     this.phaseText = this.add.text(PX, y, '', { fontSize: '9px', color: '#2a3a4a', ...mono });
     this.fpsText   = this.add.text(PX, y + 12, 'FPS: --', { fontSize: '9px', color: '#2a3a4a', ...mono });
 
     // ── Cards-played indicator ────────────────────────────────────────────
     this.add.text(PANEL_W / 2, 575, '本轮出牌', {
       fontSize: '11px', color: '#6a7f90', ...mono,
+      stroke: '#000000', strokeThickness: 2,
     }).setOrigin(0.5);
     this.cardsText = this.add.text(PANEL_W / 2, 593, `0 / ${PLAY_CARDS_LIMIT}`, {
       fontSize: '20px', color: '#ffffff', ...mono,
       stroke: '#000000', strokeThickness: 3,
     }).setOrigin(0.5);
 
+    // ══════════════════════════════════════════════════════════════════════
+    //  BOTTOM-RIGHT — SCORE & DISCARD BUTTONS (count displayed on button)
+    // ══════════════════════════════════════════════════════════════════════
+
     // ── Score button ──────────────────────────────────────────────────────
-    this.scoreBtn = this.add.image(PANEL_W / 2, 637, 'btn_score')
+    this.scoreBtn = this.add.image(BTN_X, SCORE_BTN_Y, 'btn_score')
       .setDisplaySize(174, 52)
       .setInteractive({ useHandCursor: true })
       .on('pointerup',  () => EventBus.emit('ui:score-requested'))
       .on('pointerover', () => this.scoreBtn.setTint(0xbbffcc))
       .on('pointerout',  () => this.scoreBtn.clearTint());
 
+    // Remaining count overlaid on score button (right side)
+    this.chancesText = this.add.text(BTN_X + 58, SCORE_BTN_Y, '3', {
+      fontSize: '22px', color: '#4db8ff', fontStyle: 'bold', ...mono,
+      stroke: '#000000', strokeThickness: 3,
+    }).setOrigin(0.5).setDepth(1);
+
     // ── Discard button ────────────────────────────────────────────────────
-    this.discardBtn = this.add.image(PANEL_W / 2, 697, 'btn_discard')
+    this.discardBtn = this.add.image(BTN_X, DISCARD_BTN_Y, 'btn_discard')
       .setDisplaySize(174, 46)
       .setInteractive({ useHandCursor: true })
       .on('pointerup',  () => EventBus.emit('ui:discard-requested'))
       .on('pointerover', () => this.discardBtn.setTint(0xffbbaa))
       .on('pointerout',  () => this.discardBtn.clearTint());
 
+    // Remaining count overlaid on discard button (right side)
+    this.discardText = this.add.text(BTN_X + 58, DISCARD_BTN_Y, '1', {
+      fontSize: '22px', color: '#ff9933', fontStyle: 'bold', ...mono,
+      stroke: '#000000', strokeThickness: 3,
+    }).setOrigin(0.5).setDepth(1);
+
     // ══════════════════════════════════════════════════════════════════════
-    //  RIGHT COLUMN — DECK PILE
+    //  BOTTOM-LEFT — DECK PILE
     // ══════════════════════════════════════════════════════════════════════
     this.add.text(DECK_PILE_X, DECK_PILE_Y - HAND_CARD_HEIGHT / 2 - 18, '牌  堆', {
       fontSize: '12px', color: '#778899', ...mono,
@@ -206,11 +200,6 @@ export class UIScene extends Phaser.Scene {
   }
 
   // ── Helpers ──────────────────────────────────────────────────────────────
-
-  /** Draw a thin separator line across the panel. */
-  private addSep(y: number) {
-    this.add.graphics().lineStyle(1, 0x1c2e3e, 1).lineBetween(PX, y, PANEL_W - PX, y);
-  }
 
   private onDeckCountChanged(count: number, animate: boolean) {
     this.deckCountText.setText(`×${count}`);
@@ -265,6 +254,8 @@ export class UIScene extends Phaser.Scene {
     const isPlacing = phase === 'PLAYER_PLACING';
     this.scoreBtn.setAlpha(isPlacing ? 1 : 0.4);
     this.discardBtn.setAlpha(isPlacing ? 1 : 0.4);
+    this.chancesText.setAlpha(isPlacing ? 1 : 0.4);
+    this.discardText.setAlpha(isPlacing ? 1 : 0.4);
     if (!isPlacing) {
       this.scoreBtn.disableInteractive();
       this.discardBtn.disableInteractive();
