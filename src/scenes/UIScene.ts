@@ -9,6 +9,7 @@ export class UIScene extends Phaser.Scene {
   private chancesText!: Phaser.GameObjects.Text;
   private discardText!: Phaser.GameObjects.Text;
   private phaseText!: Phaser.GameObjects.Text;
+  private fpsText!: Phaser.GameObjects.Text;
   private foundationText!: Phaser.GameObjects.Text;
   private goldText!: Phaser.GameObjects.Text;
   private scoreBtn!: Phaser.GameObjects.Image;
@@ -51,6 +52,7 @@ export class UIScene extends Phaser.Scene {
     this.goldText = this.add.text(15, 195, '金币: 0', { fontSize: '16px', color: '#ffdd44', ...mono });
 
     this.phaseText = this.add.text(15, 228, '', { fontSize: '11px', color: '#555555', ...mono });
+    this.fpsText = this.add.text(15, 248, 'FPS: --', { fontSize: '11px', color: '#446644', ...mono });
 
     // ── Right column: deck pile ──
     this.add.text(DECK_PILE_X, DECK_PILE_Y - 48, '牌堆', {
@@ -167,6 +169,10 @@ export class UIScene extends Phaser.Scene {
       this.scoreBtn.setInteractive({ useHandCursor: true });
       this.discardBtn.setInteractive({ useHandCursor: true });
     }
+  }
+
+  update() {
+    this.fpsText.setText(`FPS: ${Math.round(this.game.loop.actualFps)}`);
   }
 
   private removeRegistryListeners() {
