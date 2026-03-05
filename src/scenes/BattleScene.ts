@@ -657,14 +657,14 @@ export class BattleScene extends Phaser.Scene {
 
     this.time.delayedCall(600, () => {
       this.isAnimating = false;
-      if (this.engine.scoreChances > 0) {
+      if (this.engine.levelScore >= this.targetScore || this.engine.scoreChances <= 0) {
+        this.phaseManager.transitionTo('LEVEL_END');
+      } else {
         this.engine.resetDiscardChances(DISCARD_CHANCES_PER_ROUND);
         this.registry.set('discardChances', this.engine.discardChances);
         this.registry.set('cardsPlayedThisRound', 0);
         this.fillHand();
         this.phaseManager.transitionTo('PLAYER_PLACING');
-      } else {
-        this.phaseManager.transitionTo('LEVEL_END');
       }
     });
   }
