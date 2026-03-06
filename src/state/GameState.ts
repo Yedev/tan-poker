@@ -17,6 +17,7 @@ export class GameState {
   enhanceSlots: (EnhanceCardDef | null)[] = [null, null, null, null];
   enhanceInventory: EnhanceCardDef[] = [];
   challengeCards: ChallengeCardDef[] = [];
+  activeChallengeIndex = 0;
   consumeCards: ConsumeCardDef[] = [];
 
   static getInstance(): GameState {
@@ -39,6 +40,7 @@ export class GameState {
     this.enhanceSlots = [null, null, null, null];
     this.enhanceInventory = [];
     this.challengeCards = [];
+    this.activeChallengeIndex = 0;
     this.consumeCards = [];
   }
 
