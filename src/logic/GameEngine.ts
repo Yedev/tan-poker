@@ -1,6 +1,7 @@
-import type { CardData, Layer, CollapseResult, Suit, Rank, DetectedHand } from '../types/card';
+import type { CardData, Layer, CollapseResult, Suit, Rank } from '../types/card';
 import type { SideEffect } from '../types/card';
-import type { BaseEventContext, ScoreLayerContext } from '../types/events';
+import type { BaseEventContext, ScoreLayerContext, LayerScoreResult } from '../types/events';
+export type { LayerScoreResult } from '../types/events';
 import { GameEventSystem } from '../events/GameEventSystem';
 import { GAME_EVENTS } from '../events/GameEvents';
 import { GameState } from '../state/GameState';
@@ -8,17 +9,7 @@ import { shuffle, draw } from './deck';
 import { detectHandType, calculateBaseScore } from './scoring';
 import { checkCollapse } from './collapse';
 import { Logger } from '../utils/Logger';
-
-export interface LayerScoreResult {
-  layerIndex: number;
-  cards: CardData[];
-  hands: DetectedHand[];
-  baseScore: number;
-  scoreMultiplier: number;
-  scoreBonusFlat: number;
-  layerScore: number;
-  overrideLayerWeight: number | null;
-}
+import { SCORE_MULTIPLIER_CAP, HAND_SIZE_CAP, ENHANCE_DECAY_FLOOR } from '../config';
 
 export type EffectDelta =
   | { type: 'CARD_RANK_CHANGED'; layerIndex: number; slotIndex: number; suit: Suit; newRank: Rank }
@@ -26,7 +17,12 @@ export type EffectDelta =
   | { type: 'SCORE_CHANGED'; newScore: number }
   | { type: 'HAND_TRIMMED'; newCount: number }
   | { type: 'WEIGHT_UPDATE' }
-  | { type: 'COLLAPSE_CHECK' };
+  | { type: 'COLLAPSE_CHECK' }
+  | { type: 'GOLD_CHANGED'; newGold: number }
+  | { type: 'SCORE_CHANCE_CHANGED'; newChances: number }
+  | { type: 'FORCE_FAIL' }
+  | { type: 'ENHANCE_DECAYED'; multiplier: number }
+  | { type: 'HAND_CARD_DISCARDED'; count: number };
 
 export class GameEngine {
   readonly board: Layer[] = [];
@@ -101,6 +97,7 @@ export class GameEngine {
 
   scoreAllLayers(baseCtx: BaseEventContext): LayerScoreResult[] {
     const ges = GameEventSystem.getInstance();
+    const gs = GameState.getInstance();
     const results: LayerScoreResult[] = [];
 
     for (let li = 0; li < this.board.length; li++) {
@@ -130,6 +127,7 @@ export class GameEngine {
         scoreMultiplier: 1.0,
         scoreBonusFlat: 0,
         overrideLayerWeight: null,
+        previousLayerResults: [...results],
       };
       ges.emit(GAME_EVENTS.SCORE_LAYER, layerCtx);
 
@@ -138,21 +136,35 @@ export class GameEngine {
         Logger.score(`  Layer${li}: 承重覆盖 → ${layerCtx.overrideLayerWeight}`);
       }
 
-      const layerScore = baseScore * layerCtx.scoreMultiplier + layerCtx.scoreBonusFlat;
+      // Apply enhance decay multiplier to both multiplier and flat bonus
+      const decayedMultiplier = layerCtx.scoreMultiplier > 1.0
+        ? 1.0 + (layerCtx.scoreMultiplier - 1.0) * gs.enhanceDecayMultiplier
+        : layerCtx.scoreMultiplier;
+      const decayedFlat = Math.floor(layerCtx.scoreBonusFlat * gs.enhanceDecayMultiplier);
+      // Cap multiplier
+      const cappedMultiplier = Math.min(decayedMultiplier, SCORE_MULTIPLIER_CAP);
+
+      const layerScore = Math.floor(layerCtx.baseScore * cappedMultiplier) + decayedFlat;
       Logger.score(
-        `  Layer${li}: ${baseScore} × ${layerCtx.scoreMultiplier.toFixed(2)} + ${layerCtx.scoreBonusFlat} = ${layerScore.toFixed(1)}`,
+        `  Layer${li}: base=${layerCtx.baseScore.toFixed(1)} × mult=${cappedMultiplier.toFixed(2)}` +
+        ` + flat=${decayedFlat} = ${layerScore}` +
+        (gs.enhanceDecayMultiplier < 1.0 ? ` (衰减×${gs.enhanceDecayMultiplier.toFixed(2)})` : ''),
       );
 
-      results.push({
+      const result: LayerScoreResult = {
         layerIndex: li,
         cards,
         hands,
-        baseScore,
-        scoreMultiplier: layerCtx.scoreMultiplier,
-        scoreBonusFlat: layerCtx.scoreBonusFlat,
+        baseScore: layerCtx.baseScore,
+        scoreMultiplier: cappedMultiplier,
+        scoreBonusFlat: decayedFlat,
         layerScore,
         overrideLayerWeight: layerCtx.overrideLayerWeight,
-      });
+      };
+      results.push(result);
+
+      // Update last scored layer suits for Resonance
+      gs.lastScoredLayerSuits = cards.map(c => c.suit);
     }
 
     return results;
@@ -160,6 +172,7 @@ export class GameEngine {
 
   applyEffects(effects: SideEffect[]): EffectDelta[] {
     const deltas: EffectDelta[] = [];
+    const gs = GameState.getInstance();
     for (const effect of effects) {
       Logger.effect(`执行副作用: ${effect.type}  参数: ${JSON.stringify(effect)}`);
       switch (effect.type) {
@@ -182,9 +195,8 @@ export class GameEngine {
         }
         case 'MODIFY_HAND_SIZE': {
           const delta = (effect.delta as number) || 0;
-          const gs = GameState.getInstance();
           const before = gs.handSize;
-          gs.handSize += delta;
+          gs.handSize = Math.max(1, Math.min(HAND_SIZE_CAP, gs.handSize + delta));
           Logger.effect(`MODIFY_HAND_SIZE: ${before} → ${gs.handSize}  (${delta >= 0 ? '+' : ''}${delta})`);
           if (effect.trimExcess) {
             while (this.hand.length > gs.handSize && this.hand.length > 0) {
@@ -202,6 +214,70 @@ export class GameEngine {
           Logger.effect(`DESTROY_RANDOM_SLOT: Layer${li} 销毁 ${cnt} 个格子`);
           deltas.push(...this._applyDestroySlots(li, cnt));
           deltas.push({ type: 'WEIGHT_UPDATE' });
+          break;
+        }
+        case 'MODIFY_GOLD': {
+          const multiplier = (effect.multiplier as number) ?? 1;
+          const delta = (effect.delta as number) ?? 0;
+          const before = gs.gold;
+          gs.gold = Math.max(0, Math.floor(gs.gold * multiplier) + delta);
+          Logger.effect(`MODIFY_GOLD: ${before} → ${gs.gold}`);
+          deltas.push({ type: 'GOLD_CHANGED', newGold: gs.gold });
+          break;
+        }
+        case 'MODIFY_SCORE_CHANCE': {
+          const delta = (effect.delta as number) || 0;
+          const before = this.scoreChances;
+          this.scoreChances = Math.max(1, this.scoreChances + delta);
+          Logger.effect(`MODIFY_SCORE_CHANCE: ${before} → ${this.scoreChances}`);
+          deltas.push({ type: 'SCORE_CHANCE_CHANGED', newChances: this.scoreChances });
+          break;
+        }
+        case 'DISCARD_RANDOM_HAND': {
+          const count = (effect.count as number) || 1;
+          Logger.effect(`DISCARD_RANDOM_HAND: 随机弃 ${count} 张手牌`);
+          const discarded = shuffle([...this.hand]).slice(0, count);
+          for (const c of discarded) {
+            const idx = this.hand.indexOf(c);
+            if (idx >= 0) this.hand.splice(idx, 1);
+            this.discardPile.push(c);
+          }
+          deltas.push({ type: 'HAND_CARD_DISCARDED', count: discarded.length });
+          break;
+        }
+        case 'DESTROY_RANDOM_BOARD_CARD': {
+          const count = (effect.count as number) || 1;
+          Logger.effect(`DESTROY_RANDOM_BOARD_CARD: 随机摧毁 ${count} 张棋盘牌`);
+          deltas.push(...this._applyDestroyBoardCards(count));
+          deltas.push({ type: 'WEIGHT_UPDATE' });
+          if (effect.recalculateCollapse) deltas.push({ type: 'COLLAPSE_CHECK' });
+          break;
+        }
+        case 'APPLY_ENHANCE_DECAY': {
+          const factor = (effect.factor as number) ?? 0.9;
+          gs.enhanceDecayMultiplier = Math.max(ENHANCE_DECAY_FLOOR, gs.enhanceDecayMultiplier * factor);
+          Logger.effect(`APPLY_ENHANCE_DECAY: 增强系数 → ${gs.enhanceDecayMultiplier.toFixed(3)}`);
+          deltas.push({ type: 'ENHANCE_DECAYED', multiplier: gs.enhanceDecayMultiplier });
+          break;
+        }
+        case 'FORCE_FAIL_LEVEL': {
+          gs.levelForceFailed = true;
+          Logger.effect('FORCE_FAIL_LEVEL: 强制本关失败 (末日时钟)');
+          deltas.push({ type: 'FORCE_FAIL' });
+          break;
+        }
+        case 'ADD_NEXT_SCORE_BONUS': {
+          const bonus = (effect.bonus as number) || 0;
+          gs.nextScoreFlatBonus += bonus;
+          Logger.effect(`ADD_NEXT_SCORE_BONUS: +${bonus}  (共 ${gs.nextScoreFlatBonus})`);
+          break;
+        }
+        case 'DISABLE_LAYER_SLOT': {
+          const li = (effect.layerIndex as number) ?? 1;
+          const si = (effect.slotIndex as number) ?? 0;
+          gs.disabledSlots.add(`${li}-${si}`);
+          Logger.effect(`DISABLE_LAYER_SLOT: Layer${li} Slot${si} 禁用`);
+          deltas.push({ type: 'SLOT_CLEARED', layerIndex: li, slotIndex: si });
           break;
         }
         default:
@@ -284,6 +360,27 @@ export class GameEngine {
         this.board[layerIndex].pokerSlots[si] = null;
       }
       deltas.push({ type: 'SLOT_CLEARED', layerIndex, slotIndex: si });
+    }
+    return deltas;
+  }
+
+  private _applyDestroyBoardCards(count: number): EffectDelta[] {
+    const allCards: { li: number; si: number }[] = [];
+    for (let li = 0; li < this.board.length; li++) {
+      for (let si = 0; si < this.board[li].pokerSlots.length; si++) {
+        if (this.board[li].pokerSlots[si]) allCards.push({ li, si });
+      }
+    }
+    const toDestroy = shuffle(allCards).slice(0, count);
+    const deltas: EffectDelta[] = [];
+    for (const { li, si } of toDestroy) {
+      const card = this.board[li].pokerSlots[si];
+      if (card) {
+        Logger.card('销毁棋盘牌', `${Logger.fmtCard(card)} (Layer${li}-Slot${si})`);
+        this.discardPile.push(card);
+        this.board[li].pokerSlots[si] = null;
+        deltas.push({ type: 'SLOT_CLEARED', layerIndex: li, slotIndex: si });
+      }
     }
     return deltas;
   }

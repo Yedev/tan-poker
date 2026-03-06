@@ -4,7 +4,7 @@ import type { GamePhase } from '../types/game';
 import type {
   BaseEventContext, LevelStartContext, CardPlacedContext, CardDiscardedContext,
   CardDrawnContext, ScoreStartContext, ScoreEndContext,
-  LevelEndContext, CollapseTriggeredContext,
+  LevelEndContext, CollapseTriggeredContext, LayerScoreResult,
 } from '../types/events';
 import { GameState } from '../state/GameState';
 import { GameEventSystem } from '../events/GameEventSystem';
@@ -20,12 +20,12 @@ import { BoardSlot } from '../gameobjects/BoardSlot';
 import { EnhanceCard } from '../gameobjects/EnhanceCard';
 import { ChallengeCardPanel } from '../gameobjects/ChallengeCardPanel';
 import {
-  BOARD_LAYOUT, BOARD_TOP_Y, LAYER_SLOT_COUNTS, SCORE_CHANCES_PER_LEVEL, DISCARD_CHANCES_PER_ROUND,
+  BOARD_LAYOUT, BOARD_TOP_Y, LAYER_SLOT_COUNTS, DISCARD_CHANCES_PER_ROUND,
   DECK_PILE_X, DECK_PILE_Y, SLOT_WIDTH, SLOT_HEIGHT,
   PLAY_CARDS_LIMIT, DISCARD_CARDS_LIMIT,
-  CARD_WIDTH, GAME_WIDTH, GAME_HEIGHT,
-  getTargetScore,
+  GAME_WIDTH, GAME_HEIGHT,
 } from '../config';
+import { getLevelConfig } from '../config/levels';
 import { Logger } from '../utils/Logger';
 
 export class BattleScene extends Phaser.Scene {
@@ -55,33 +55,45 @@ export class BattleScene extends Phaser.Scene {
   }
 
   create() {
-    // Full-viewport background fill (covers expanded areas beyond game_bg in EXPAND mode)
     this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, 9999, 9999, 0x091a28).setDepth(-1);
     this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'game_bg').setDepth(0);
 
     const gs = GameState.getInstance();
     gs.currentLevel = this.level;
-    this.targetScore = getTargetScore(this.level);
 
-    this.engine = new GameEngine(SCORE_CHANCES_PER_LEVEL, DISCARD_CHANCES_PER_ROUND);
+    const cfg = getLevelConfig(this.level);
+    this.targetScore = cfg.targetScore;
+
+    // Apply level config to game state
+    gs.handSize = cfg.handSize;
+    // Reset level-specific state
+    gs.resetLevelState();
+    gs.scoreChances = cfg.scoreChances;
+
+    this.engine = new GameEngine(cfg.scoreChances, DISCARD_CHANCES_PER_ROUND);
     this.handAnimator = new HandAnimator(this, DECK_PILE_X, DECK_PILE_Y);
 
-    Logger.info(`━━━━━━━━━━ 关卡 ${this.level} 初始化 ━━━━━━━━━━`);
-    Logger.info(`目标分数: ${this.targetScore}  计分次数: ${this.engine.scoreChances}  弃牌次数/轮: ${this.engine.discardChances}`);
+    Logger.info(`━━━━━━━━━━ 关卡 ${this.level} [${cfg.name}] 初始化 ━━━━━━━━━━`);
+    Logger.info(
+      `目标分: ${cfg.targetScore}  计分次数: ${cfg.scoreChances}  ` +
+      `手牌上限: ${cfg.handSize}  挑战槽: ${cfg.challengeSlotCount}  增强槽: ${cfg.enhanceSlotCount}`,
+    );
 
     const ges = GameEventSystem.getInstance();
     ges.unregisterAll();
+
+    // Register enhance card handlers (up to enhanceSlotCount)
     gs.enhanceSlots.forEach((card, i) => {
-      if (card) {
-        Logger.info(`加载增益卡 [Layer${i}]: ${card.name} (${card.id})`);
+      if (card && i < cfg.enhanceSlotCount) {
+        Logger.info(`加载增强卡 [Layer${i}]: ${card.name} (${card.id})`);
         ges.registerAll(card.getHandlers(i));
       }
     });
-    // Only register the currently active challenge card
-    const activeChallenge = gs.challengeCards[gs.activeChallengeIndex];
-    if (activeChallenge) {
-      Logger.info(`加载挑战卡 [active]: ${activeChallenge.name} (${activeChallenge.id})`);
-      ges.registerAll(activeChallenge.getHandlers());
+
+    // Register all active challenge cards simultaneously (all in challengeCards array)
+    for (const challenge of gs.challengeCards) {
+      Logger.info(`加载挑战卡: ${challenge.name} (${challenge.id})`);
+      ges.registerAll(challenge.getHandlers());
     }
 
     this.initBoard();
@@ -98,7 +110,6 @@ export class BattleScene extends Phaser.Scene {
     });
 
     this.phaseManager.transitionTo('LEVEL_START');
-
   }
 
   private initBoard() {
@@ -142,8 +153,9 @@ export class BattleScene extends Phaser.Scene {
       this.enhanceSlots.push(eSlot);
 
       const gs = GameState.getInstance();
+      const cfg = getLevelConfig(this.level);
       const enhCardDef = gs.enhanceSlots[li];
-      if (enhCardDef) {
+      if (enhCardDef && li < cfg.enhanceSlotCount) {
         new EnhanceCard(this, layout.enhanceSlot.x, layout.y, enhCardDef).setDepth(3);
       }
 
@@ -164,21 +176,24 @@ export class BattleScene extends Phaser.Scene {
       this.layerHighlightRects.push(rect);
     }
 
-    // Column header for enhance slots — sits just above the top board layer
     this.add.text(BOARD_LAYOUT.layers[0].enhanceSlot.x, BOARD_TOP_Y - 18, '增强', {
       fontSize: '11px', color: '#886633', fontFamily: 'monospace',
     }).setOrigin(0.5);
 
-    // Challenge card panel — top-right corner
     const gs = GameState.getInstance();
     if (gs.challengeCards.length > 0) {
-      this.challengePanel = new ChallengeCardPanel(this, gs.challengeCards, gs.activeChallengeIndex);
+      this.challengePanel = new ChallengeCardPanel(this, gs.challengeCards, 0);
     }
+
+    // Level name display
+    const cfg = getLevelConfig(this.level);
+    this.add.text(GAME_WIDTH / 2, 18, `第 ${this.level} 关  ${cfg.name}`, {
+      fontSize: '16px', color: '#ccddff', fontFamily: 'monospace',
+    }).setOrigin(0.5).setDepth(10);
   }
 
   private updateLayerHighlights() {
     const selected = this.handAnimator.handCards.filter(c => c.isSelected);
-    // Include hoverPreviewCard (if unselected) to give a placement hint on hover
     const preview = (this.hoverPreviewCard && !this.hoverPreviewCard.isSelected)
       ? [...selected, this.hoverPreviewCard]
       : selected;
@@ -187,7 +202,9 @@ export class BattleScene extends Phaser.Scene {
     const foundation = gs.foundation + gs.tempFoundationBonus;
 
     for (let li = 0; li < this.layerHighlightRects.length; li++) {
-      const emptySlots = this.pokerSlots[li].filter(s => !s.isOccupied);
+      const emptySlots = this.pokerSlots[li].filter(
+        s => !s.isOccupied && !gs.disabledSlots.has(`${li}-${s.slotIndex}`),
+      );
       const canPlace = canInteract
         && emptySlots.length >= preview.length
         && this.engine.cardsPlayedThisRound + preview.length <= PLAY_CARDS_LIMIT;
@@ -202,7 +219,6 @@ export class BattleScene extends Phaser.Scene {
         continue;
       }
 
-      // Simulate placing preview cards into the first N empty slots
       const simLayers = this.engine.board.map(l => ({
         pokerSlots: [...l.pokerSlots],
         overrideWeight: l.overrideWeight,
@@ -234,12 +250,14 @@ export class BattleScene extends Phaser.Scene {
       return;
     }
 
-    const emptySlots = this.pokerSlots[layerIndex].filter(s => !s.isOccupied);
+    const gs = GameState.getInstance();
+    const emptySlots = this.pokerSlots[layerIndex].filter(
+      s => !s.isOccupied && !gs.disabledSlots.has(`${layerIndex}-${s.slotIndex}`),
+    );
     if (emptySlots.length < selected.length) return;
 
     for (let i = 0; i < selected.length; i++) {
       this.placeCard(selected[i], emptySlots[i], i * 120);
-      // Stop if a collapse was triggered — further placements would go onto a cleared board
       if (this.pendingCollapseResult) break;
     }
   }
@@ -248,6 +266,9 @@ export class BattleScene extends Phaser.Scene {
     if (this.isAnimating) return;
     if (this.phaseManager.getPhase() !== 'PLAYER_PLACING') return;
     if (slot.isOccupied) return;
+
+    const gs = GameState.getInstance();
+    if (gs.disabledSlots.has(`${slot.layerIndex}-${slot.slotIndex}`)) return;
 
     const selected = this.handAnimator.handCards.filter(c => c.isSelected);
     if (selected.length === 0) return;
@@ -314,9 +335,10 @@ export class BattleScene extends Phaser.Scene {
       if (!(obj instanceof Card) || obj.location !== 'hand') return;
       const slot = zone.getData('boardSlot') as BoardSlot | undefined;
       if (!slot || slot.slotType !== 'poker' || slot.isOccupied) return;
+      const gs = GameState.getInstance();
+      if (gs.disabledSlots.has(`${slot.layerIndex}-${slot.slotIndex}`)) return;
       if (this.engine.cardsPlayedThisRound >= PLAY_CARDS_LIMIT) return;
 
-      const gs = GameState.getInstance();
       const result = wouldCollapse(this.engine.board, gs.foundation + gs.tempFoundationBonus, slot.layerIndex, slot.slotIndex, obj.cardData);
       slot.setHighlight(result.collapsed ? 'danger' : 'hover');
       if (result.collapsed) {
@@ -344,6 +366,11 @@ export class BattleScene extends Phaser.Scene {
       if (!(obj instanceof Card) || obj.location !== 'hand') return;
       const slot = zone.getData('boardSlot') as BoardSlot | undefined;
       if (!slot || slot.slotType !== 'poker' || slot.isOccupied) {
+        (obj as Card).returnHome();
+        return;
+      }
+      const gs = GameState.getInstance();
+      if (gs.disabledSlots.has(`${slot.layerIndex}-${slot.slotIndex}`)) {
         (obj as Card).returnHome();
         return;
       }
@@ -385,12 +412,9 @@ export class BattleScene extends Phaser.Scene {
     this.registry.set('cardsPlayedThisRound', this.engine.cardsPlayedThisRound);
 
     this.handAnimator.removeCard(card);
-
-    // Deselect all remaining hand cards
     for (const c of this.handAnimator.handCards) {
       if (c.isSelected) c.deselect();
     }
-
     this.handAnimator.layout();
 
     const layerCards = this.engine.board[slot.layerIndex].pokerSlots.filter(Boolean) as CardData[];
@@ -403,12 +427,14 @@ export class BattleScene extends Phaser.Scene {
     ctx.slotIndex = slot.slotIndex;
     ges.emit(GAME_EVENTS.CARD_PLACED, ctx);
 
+    if (ctx.sideEffects && ctx.sideEffects.length > 0) {
+      const deltas = this.engine.applyEffects(ctx.sideEffects);
+      this.applyEffectDeltas(deltas);
+    }
+
     this.updateWeightDisplay();
     this.updateLayerHighlights();
 
-    // Fly animation to slot
-    // Compute scale so the card displays at exactly slot dimensions,
-    // accounting for the 2× texture resolution used by BootScene.
     const targetScaleX = card.scaleX * (SLOT_WIDTH / card.displayWidth);
     const targetScaleY = card.scaleY * (SLOT_HEIGHT / card.displayHeight);
 
@@ -459,6 +485,11 @@ export class BattleScene extends Phaser.Scene {
     ctx.destroyedCards = result.destroyedCards;
     ges.emit(GAME_EVENTS.COLLAPSE_TRIGGERED, ctx);
 
+    if (ctx.sideEffects && ctx.sideEffects.length > 0) {
+      const deltas = this.engine.applyEffects(ctx.sideEffects);
+      this.applyEffectDeltas(deltas);
+    }
+
     for (const li of result.destroyedLayerIndices) {
       for (let si = 0; si < this.pokerSlots[li].length; si++) {
         const key = `${li}-${si}`;
@@ -485,13 +516,17 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private updateWeightDisplay() {
+    const gs = GameState.getInstance();
     for (let i = 0; i < this.engine.board.length; i++) {
       const w = getLayerWeight(this.engine.board[i]);
-      this.weightTexts[i].setText(w > 0 ? `${w}` : '');
+      let label = w > 0 ? `${w}` : '';
+      if (gs.petrifiedSlots.has(`layer_${i}`)) label += ' ❄';
+      this.weightTexts[i].setText(label);
     }
   }
 
   private applyEffectDeltas(deltas: EffectDelta[]) {
+    const gs = GameState.getInstance();
     for (const d of deltas) {
       switch (d.type) {
         case 'CARD_RANK_CHANGED': {
@@ -504,7 +539,9 @@ export class BattleScene extends Phaser.Scene {
           const obj = this.boardCardObjects.get(key);
           obj?.destroy();
           this.boardCardObjects.delete(key);
-          this.pokerSlots[d.layerIndex][d.slotIndex].isOccupied = false;
+          if (this.pokerSlots[d.layerIndex]?.[d.slotIndex]) {
+            this.pokerSlots[d.layerIndex][d.slotIndex].isOccupied = false;
+          }
           break;
         }
         case 'SCORE_CHANGED':
@@ -523,6 +560,31 @@ export class BattleScene extends Phaser.Scene {
         case 'COLLAPSE_CHECK':
           this.runCollapseCheck();
           break;
+        case 'GOLD_CHANGED':
+          this.registry.set('gold', d.newGold);
+          break;
+        case 'SCORE_CHANCE_CHANGED':
+          this.engine.scoreChances = d.newChances;
+          gs.scoreChances = d.newChances;
+          this.registry.set('scoreChances', d.newChances);
+          break;
+        case 'FORCE_FAIL':
+          gs.levelForceFailed = true;
+          break;
+        case 'HAND_CARD_DISCARDED': {
+          const extra = this.handAnimator.handCards.length - this.engine.hand.length;
+          for (let i = 0; i < extra && i < d.count; i++) {
+            const removed = this.handAnimator.handCards.pop();
+            removed?.destroy();
+          }
+          this.handAnimator.layout();
+          break;
+        }
+        case 'ENHANCE_DECAYED': {
+          const pct = Math.round(d.multiplier * 100);
+          this.showFloatText(GAME_WIDTH / 2, 80, `⚡ 增强效果: ${pct}%`, '#ff8844');
+          break;
+        }
       }
     }
   }
@@ -550,6 +612,22 @@ export class BattleScene extends Phaser.Scene {
       this.applyEffectDeltas(deltas);
     }
 
+    // Sync engine score chances with GameState (may have been modified by challenge cards)
+    const gs = GameState.getInstance();
+    this.engine.scoreChances = gs.scoreChances;
+    this.registry.set('scoreChances', this.engine.scoreChances);
+
+    // Apply disabled slots visually
+    for (const key of gs.disabledSlots) {
+      const [liStr, siStr] = key.split('-');
+      const li = parseInt(liStr);
+      const si = parseInt(siStr);
+      if (this.pokerSlots[li]?.[si]) {
+        this.pokerSlots[li][si].setHighlight('danger');
+        this.pokerSlots[li][si].isOccupied = true;
+      }
+    }
+
     this.fillHand();
 
     this.time.delayedCall(400, () => {
@@ -565,19 +643,37 @@ export class BattleScene extends Phaser.Scene {
       : this.engine.fillHand(gs.handSize);
     this.registry.set('drawPileCount', this.engine.drawPile.length);
 
+    const ges = GameEventSystem.getInstance();
+
     for (const card of newCards) {
-      const ges = GameEventSystem.getInstance();
       const ctx = this.buildBaseContext() as CardDrawnContext;
       ctx.card = card;
       Logger.card('摸牌', Logger.fmtCard(card));
       ges.emit(GAME_EVENTS.CARD_DRAWN, ctx);
+
+      // Black hole: void this card
+      const voidEffect = ctx.sideEffects?.find(e => e.type === 'VOID_DRAWN_CARD');
+      if (voidEffect) {
+        const idx = this.engine.hand.indexOf(card);
+        if (idx >= 0) this.engine.hand.splice(idx, 1);
+        this.engine.discardPile.push(card);
+        Logger.card('黑洞吞噬', Logger.fmtCard(card));
+      }
     }
 
-    this.handAnimator.animateDraw(newCards, prevCount);
+    // Only animate the cards that are actually in the engine's hand
+    const keptCards = newCards.filter(c => this.engine.hand.includes(c));
+    this.handAnimator.animateDraw(keptCards, prevCount);
   }
 
   private onPlayerPlacing() {
     Logger.info(`PLAYER_PLACING — 手牌: [${Logger.fmtCards(this.handAnimator.handCards.map(c => c.cardData))}]`);
+
+    // Clear petrified layers at start of new placing round
+    const gs = GameState.getInstance();
+    gs.petrifiedSlots.clear();
+    this.updateWeightDisplay();
+
     for (const card of this.handAnimator.handCards) {
       card.enableDrag();
     }
@@ -630,6 +726,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private async onScoring() {
+    const gs = GameState.getInstance();
     Logger.score(`━━ SCORING 开始  计分机会剩余: ${this.engine.scoreChances}  当前总分: ${this.engine.levelScore} ━━`);
     this.isAnimating = true;
     this.updateLayerHighlights();
@@ -641,12 +738,15 @@ export class BattleScene extends Phaser.Scene {
     startCtx.scoreChancesRemaining = this.engine.scoreChances;
     ges.emit(GAME_EVENTS.SCORE_START, startCtx);
 
-    const results = this.engine.scoreAllLayers(this.buildBaseContext());
+    // Apply collapse-plunder next score bonus
+    const plunderBonus = gs.nextScoreFlatBonus;
+    gs.nextScoreFlatBonus = 0;
+
+    const results: LayerScoreResult[] = this.engine.scoreAllLayers(this.buildBaseContext());
 
     let totalGained = 0;
     for (const result of results) {
       const enhEffects: string[] = [];
-      const gs = GameState.getInstance();
       const enh = gs.enhanceSlots[result.layerIndex];
       if (enh) {
         if (result.scoreMultiplier !== 1.0) enhEffects.push(`×${result.scoreMultiplier.toFixed(1)}`);
@@ -657,37 +757,68 @@ export class BattleScene extends Phaser.Scene {
       totalGained += result.layerScore;
     }
 
+    if (plunderBonus > 0) {
+      totalGained += plunderBonus;
+      this.showFloatText(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 50, `坍塌掠夺 +${plunderBonus}`, '#ff9900');
+    }
+
     Logger.score(`本次计分合计: +${totalGained.toFixed(1)}  累计总分: ${this.engine.levelScore} → ${this.engine.levelScore + totalGained}`);
+
+    const levelScoreBefore = this.engine.levelScore;
     this.engine.addScore(totalGained);
     this.registry.set('score', this.engine.levelScore);
 
-    const gs = GameState.getInstance();
     const goldEarned = Math.floor(totalGained / 10);
-    if (goldEarned > 0) {
-      gs.gold += goldEarned;
-      this.registry.set('gold', gs.gold);
-      Logger.info(`金币获得: +${goldEarned}  (共 ${gs.gold})`);
-      this.playGoldEarnedAnimation(goldEarned);
-    }
 
     const endCtx = this.buildBaseContext() as ScoreEndContext;
     endCtx.totalScoreGained = totalGained;
+    endCtx.targetScore = this.targetScore;
+    endCtx.levelScoreBefore = levelScoreBefore;
+    endCtx.layerResults = results;
+    endCtx.postLayerBonus = 0;
+    endCtx.goldEarned = goldEarned;
     ges.emit(GAME_EVENTS.SCORE_END, endCtx);
-    if (endCtx.sideEffects) {
+
+    // Apply postLayerBonus (Symbiosis)
+    if (endCtx.postLayerBonus > 0) {
+      this.engine.addScore(endCtx.postLayerBonus);
+      this.registry.set('score', this.engine.levelScore);
+      this.showFloatText(GAME_WIDTH / 2, GAME_HEIGHT / 2, `共生契约 +${endCtx.postLayerBonus}`, '#44ffaa');
+    }
+
+    // Apply gold after GreedCurse may have modified goldEarned
+    if (endCtx.goldEarned > 0) {
+      gs.gold += endCtx.goldEarned;
+      this.registry.set('gold', gs.gold);
+      Logger.info(`金币获得: +${endCtx.goldEarned}  (共 ${gs.gold})`);
+      this.playGoldEarnedAnimation(endCtx.goldEarned);
+    }
+
+    if (endCtx.sideEffects && endCtx.sideEffects.length > 0) {
       Logger.effect(`SCORE_END sideEffects: ${JSON.stringify(endCtx.sideEffects)}`);
       const deltas = this.engine.applyEffects(endCtx.sideEffects);
       this.applyEffectDeltas(deltas);
     }
 
-    this.advanceChallengeCard();
+    gs.scoringRoundsElapsed++;
+
     this.engine.consumeScoreChance();
     this.registry.set('scoreChances', this.engine.scoreChances);
     Logger.score(`━━ SCORING 结束  计分机会剩余: ${this.engine.scoreChances}  当前总分: ${this.engine.levelScore} ━━`);
 
     this.engine.clearLayerOverrides();
 
+    const forceFailed = gs.levelForceFailed;
+
     this.time.delayedCall(600, () => {
       this.isAnimating = false;
+
+      if (forceFailed) {
+        Logger.info('末日时钟：强制本关失败');
+        this.phaseManager.transitionTo('LEVEL_END');
+        return;
+      }
+
       if (this.engine.levelScore >= this.targetScore || this.engine.scoreChances <= 0) {
         this.phaseManager.transitionTo('LEVEL_END');
       } else {
@@ -781,6 +912,17 @@ export class BattleScene extends Phaser.Scene {
     });
   }
 
+  private showFloatText(x: number, y: number, text: string, color: string) {
+    const txt = this.add.text(x, y, text, {
+      fontSize: '20px', color, fontFamily: 'monospace',
+      stroke: '#000000', strokeThickness: 3,
+    }).setOrigin(0.5).setDepth(55);
+    this.tweens.add({
+      targets: txt, y: txt.y - 40, alpha: 0, duration: 1000, delay: 200,
+      onComplete: () => txt.destroy(),
+    });
+  }
+
   private onLevelEnd() {
     const gs = GameState.getInstance();
 
@@ -791,7 +933,7 @@ export class BattleScene extends Phaser.Scene {
       }
     }
 
-    const survived = this.engine.levelScore >= this.targetScore;
+    const survived = !gs.levelForceFailed && this.engine.levelScore >= this.targetScore;
     Logger.info(
       `━━ LEVEL_END: 关卡 ${this.level}  得分 ${this.engine.levelScore} / 目标 ${this.targetScore}  ` +
       `结果: ${survived ? '✓ 通关' : '✗ 失败'}  新基层承重: ${foundationValue} ━━`,
@@ -804,6 +946,10 @@ export class BattleScene extends Phaser.Scene {
     ctx.survived = survived;
     ctx.foundationValue = foundationValue;
     ges.emit(GAME_EVENTS.LEVEL_END, ctx);
+
+    // Save cross-level data for DebtCollect
+    gs.prevLevelScore = this.engine.levelScore;
+    gs.prevLevelTarget = this.targetScore;
 
     gs.score += this.engine.levelScore;
     gs.foundation = foundationValue > 0 ? foundationValue : 1;
@@ -819,32 +965,15 @@ export class BattleScene extends Phaser.Scene {
       this.cleanupScene();
       if (survived) {
         gs.currentLevel++;
-        this.scene.start('ShopScene', { level: gs.currentLevel });
+        if (gs.currentLevel > 20) {
+          this.scene.start('VictoryScene');
+        } else {
+          this.scene.start('ShopScene', { level: gs.currentLevel });
+        }
       } else {
         this.scene.start('GameOverScene');
       }
     });
-  }
-
-  private advanceChallengeCard() {
-    const gs = GameState.getInstance();
-    const ges = GameEventSystem.getInstance();
-
-    const old = gs.challengeCards[gs.activeChallengeIndex];
-    if (old) {
-      ges.unregister(old.id);
-      Logger.info(`挑战卡销毁: ${old.name}`);
-    }
-
-    gs.activeChallengeIndex++;
-
-    const next = gs.challengeCards[gs.activeChallengeIndex];
-    if (next) {
-      Logger.info(`挑战卡激活: ${next.name} (${next.id})`);
-      ges.registerAll(next.getHandlers());
-    }
-
-    this.challengePanel?.advance();
   }
 
   private cleanupScene() {
