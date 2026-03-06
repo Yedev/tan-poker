@@ -17,4 +17,8 @@ export interface GameStateSnapshot {
   scoreChances: number;
   discardChances: number;
   foundation: number;
+  enhanceDecayMultiplier: number;
+  scoringRoundsElapsed: number;
+  prevLevelScore: number;
+  prevLevelTarget: number;
 }

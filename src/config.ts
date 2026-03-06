@@ -1,7 +1,7 @@
 import type { HandType } from './types/card';
 
-export const GAME_WIDTH = window.innerWidth;
-export const GAME_HEIGHT = window.innerHeight;
+export const GAME_WIDTH = typeof window !== 'undefined' ? window.innerWidth : 1280;
+export const GAME_HEIGHT = typeof window !== 'undefined' ? window.innerHeight : 720;
 
 export const CARD_WIDTH = 64;
 export const CARD_HEIGHT = 90;
@@ -15,6 +15,13 @@ export const DISCARD_CHANCES_PER_ROUND = 1;
 export const PLAY_CARDS_LIMIT = 5;
 export const DISCARD_CARDS_LIMIT = 5;
 
+/** 手牌上限上界（幸运摸牌等不得超过此值） */
+export const HAND_SIZE_CAP = 15;
+/** 单层 scoreMultiplier 全局上界 */
+export const SCORE_MULTIPLIER_CAP = 10.0;
+/** 增强卡衰减下界（熵增律不得低于此值） */
+export const ENHANCE_DECAY_FLOOR = 0.1;
+
 export const HAND_TYPE_MULTIPLIERS: Record<HandType, number> = {
   single: 1.0,
   pair: 2.0,
@@ -24,6 +31,7 @@ export const HAND_TYPE_MULTIPLIERS: Record<HandType, number> = {
   straight_flush: 6.0,
 };
 
+/** @deprecated 使用 getLevelConfig(level).targetScore 替代 */
 export function getTargetScore(level: number): number {
   return Math.floor(50 * Math.pow(1.6, level - 1));
 }

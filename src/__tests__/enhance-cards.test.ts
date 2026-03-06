@@ -29,6 +29,7 @@ function makeScoreLayerCtx(layerIndex: number, cards: CardData[]): ScoreLayerCon
     scoreMultiplier: 1.0,
     scoreBonusFlat: 0,
     overrideLayerWeight: null,
+    previousLayerResults: [],
   };
 }
 
