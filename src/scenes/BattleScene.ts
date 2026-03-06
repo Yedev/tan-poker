@@ -18,7 +18,7 @@ import { wouldCollapse, checkCollapse, getLayerWeight } from '../logic/collapse'
 import { Card } from '../gameobjects/Card';
 import { BoardSlot } from '../gameobjects/BoardSlot';
 import { EnhanceCard } from '../gameobjects/EnhanceCard';
-import { ChallengeCard } from '../gameobjects/ChallengeCard';
+import { ChallengeCardPanel } from '../gameobjects/ChallengeCardPanel';
 import {
   BOARD_LAYOUT, BOARD_TOP_Y, LAYER_SLOT_COUNTS, SCORE_CHANCES_PER_LEVEL, DISCARD_CHANCES_PER_ROUND,
   DECK_PILE_X, DECK_PILE_Y, SLOT_WIDTH, SLOT_HEIGHT,
@@ -44,6 +44,7 @@ export class BattleScene extends Phaser.Scene {
   private weightTexts: Phaser.GameObjects.Text[] = [];
   private layerHighlightRects: Phaser.GameObjects.Rectangle[] = [];
   private hoverPreviewCard: Card | null = null;
+  private challengePanel: ChallengeCardPanel | null = null;
 
   constructor() {
     super('BattleScene');
@@ -76,10 +77,12 @@ export class BattleScene extends Phaser.Scene {
         ges.registerAll(card.getHandlers(i));
       }
     });
-    gs.challengeCards.forEach(card => {
-      Logger.info(`加载挑战卡: ${card.name} (${card.id})`);
-      ges.registerAll(card.getHandlers());
-    });
+    // Only register the currently active challenge card
+    const activeChallenge = gs.challengeCards[gs.activeChallengeIndex];
+    if (activeChallenge) {
+      Logger.info(`加载挑战卡 [active]: ${activeChallenge.name} (${activeChallenge.id})`);
+      ges.registerAll(activeChallenge.getHandlers());
+    }
 
     this.initBoard();
     this.engine.initDeck(gs.deck);
@@ -166,16 +169,10 @@ export class BattleScene extends Phaser.Scene {
       fontSize: '11px', color: '#886633', fontFamily: 'monospace',
     }).setOrigin(0.5);
 
-    // Challenge cards — centered above the board in the top strip (y≈48)
+    // Challenge card panel — top-right corner
     const gs = GameState.getInstance();
-    const cc = gs.challengeCards;
-    if (cc.length > 0) {
-      const ccSpacingX = CARD_WIDTH + 14;
-      const ccTotalW = cc.length * ccSpacingX - 14;
-      const ccStartX = GAME_WIDTH / 2 - ccTotalW / 2 + CARD_WIDTH / 2;
-      cc.forEach((cardDef, i) => {
-        new ChallengeCard(this, ccStartX + i * ccSpacingX, 48, cardDef).setDepth(3);
-      });
+    if (gs.challengeCards.length > 0) {
+      this.challengePanel = new ChallengeCardPanel(this, gs.challengeCards, gs.activeChallengeIndex);
     }
   }
 
@@ -682,6 +679,7 @@ export class BattleScene extends Phaser.Scene {
       this.applyEffectDeltas(deltas);
     }
 
+    this.advanceChallengeCard();
     this.engine.consumeScoreChance();
     this.registry.set('scoreChances', this.engine.scoreChances);
     Logger.score(`━━ SCORING 结束  计分机会剩余: ${this.engine.scoreChances}  当前总分: ${this.engine.levelScore} ━━`);
@@ -828,9 +826,32 @@ export class BattleScene extends Phaser.Scene {
     });
   }
 
+  private advanceChallengeCard() {
+    const gs = GameState.getInstance();
+    const ges = GameEventSystem.getInstance();
+
+    const old = gs.challengeCards[gs.activeChallengeIndex];
+    if (old) {
+      ges.unregister(old.id);
+      Logger.info(`挑战卡销毁: ${old.name}`);
+    }
+
+    gs.activeChallengeIndex++;
+
+    const next = gs.challengeCards[gs.activeChallengeIndex];
+    if (next) {
+      Logger.info(`挑战卡激活: ${next.name} (${next.id})`);
+      ges.registerAll(next.getHandlers());
+    }
+
+    this.challengePanel?.advance();
+  }
+
   private cleanupScene() {
     EventBus.off('ui:score-requested', this.onScoreRequested, this);
     EventBus.off('ui:discard-requested', this.onDiscardRequested, this);
+    this.challengePanel?.destroy();
+    this.challengePanel = null;
     this.scene.stop('UIScene');
     GameEventSystem.getInstance().unregisterAll();
   }

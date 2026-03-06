@@ -4,6 +4,9 @@ import { createDeck } from '../logic/deck';
 import { StraightFever } from '../cards/enhance/StraightFever';
 import { RoyalExclusive } from '../cards/enhance/RoyalExclusive';
 import { HollowBrick } from '../cards/enhance/HollowBrick';
+import { AcidRain } from '../cards/challenge/AcidRain';
+import { Earthquake } from '../cards/challenge/Earthquake';
+import { Detention } from '../cards/challenge/Detention';
 import { CARD_WIDTH, CARD_HEIGHT, GAME_WIDTH, GAME_HEIGHT, SUITS } from '../config';
 
 // Card strip display dimensions
@@ -95,6 +98,7 @@ export class TitleScene extends Phaser.Scene {
       gs.reset();
       gs.deck = createDeck();
       gs.enhanceSlots = [StraightFever, RoyalExclusive, HollowBrick];
+      gs.challengeCards = [AcidRain, Earthquake, Detention];
       this.scene.start('BattleScene', { level: 1 });
     });
   }
