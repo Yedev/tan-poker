@@ -8,7 +8,6 @@ export class GameState {
   score = 0;
   gold = 0;
   handSize = DEFAULT_HAND_SIZE;
-  scoreChances = SCORE_CHANCES_PER_LEVEL;
   discardChances = DISCARD_CHANCES_PER_ROUND;
   foundation = Infinity;
   tempFoundationBonus = 0;
@@ -74,7 +73,6 @@ export class GameState {
 
   /** 每关开始时重置关内状态 */
   resetLevelState(): void {
-    this.scoreChances = SCORE_CHANCES_PER_LEVEL;
     this.discardChances = DISCARD_CHANCES_PER_ROUND;
     this.tempFoundationBonus = 0;
     this.drawnCardCount = 0;
@@ -92,13 +90,18 @@ export class GameState {
     this.resetLevelState();
   }
 
+  /**
+   * Returns a snapshot for use in event contexts.
+   * Note: scoreChances is injected from GameEngine in buildBaseContext —
+   * use ctx.gameState.scoreChances (not gs directly) for the authoritative value.
+   */
   getSnapshot() {
     return {
       level: this.currentLevel,
       score: this.score,
       gold: this.gold,
       handSize: this.handSize,
-      scoreChances: this.scoreChances,
+      scoreChances: SCORE_CHANCES_PER_LEVEL, // placeholder; overridden by buildBaseContext
       discardChances: this.discardChances,
       foundation: this.foundation,
       enhanceDecayMultiplier: this.enhanceDecayMultiplier,

@@ -69,8 +69,6 @@ export class ShopScene extends Phaser.Scene {
     btn.on('pointerover', () => btn.setTint(0xaaffaa));
     btn.on('pointerout', () => btn.clearTint());
     btn.on('pointerup', () => {
-      gs.resetLevelState();
-      gs.scoreChances = cfg.scoreChances;
       this.scene.start('BattleScene', { level: this.level });
     });
   }
