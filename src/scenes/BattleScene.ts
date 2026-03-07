@@ -14,6 +14,7 @@ import { PhaseManager } from '../logic/PhaseManager';
 import { GameEngine } from '../logic/GameEngine';
 import type { EffectDelta } from '../logic/GameEngine';
 import { HandAnimator } from '../rendering/HandAnimator';
+import { HAND_TYPE_LABELS } from '../logic/scoring';
 import { wouldCollapse, checkCollapse, getLayerWeight } from '../logic/collapse';
 import { Card } from '../gameobjects/Card';
 import { BoardSlot } from '../gameobjects/BoardSlot';
@@ -68,7 +69,6 @@ export class BattleScene extends Phaser.Scene {
     gs.handSize = cfg.handSize;
     // Reset level-specific state
     gs.resetLevelState();
-    gs.scoreChances = cfg.scoreChances;
 
     this.engine = new GameEngine(cfg.scoreChances, DISCARD_CHANCES_PER_ROUND);
     this.handAnimator = new HandAnimator(this, DECK_PILE_X, DECK_PILE_Y);
@@ -564,8 +564,6 @@ export class BattleScene extends Phaser.Scene {
           this.registry.set('gold', d.newGold);
           break;
         case 'SCORE_CHANCE_CHANGED':
-          this.engine.scoreChances = d.newChances;
-          gs.scoreChances = d.newChances;
           this.registry.set('scoreChances', d.newChances);
           break;
         case 'FORCE_FAIL':
@@ -612,12 +610,10 @@ export class BattleScene extends Phaser.Scene {
       this.applyEffectDeltas(deltas);
     }
 
-    // Sync engine score chances with GameState (may have been modified by challenge cards)
-    const gs = GameState.getInstance();
-    this.engine.scoreChances = gs.scoreChances;
     this.registry.set('scoreChances', this.engine.scoreChances);
 
     // Apply disabled slots visually
+    const gs = GameState.getInstance();
     for (const key of gs.disabledSlots) {
       const [liStr, siStr] = key.split('-');
       const li = parseInt(liStr);
@@ -651,13 +647,9 @@ export class BattleScene extends Phaser.Scene {
       Logger.card('摸牌', Logger.fmtCard(card));
       ges.emit(GAME_EVENTS.CARD_DRAWN, ctx);
 
-      // Black hole: void this card
-      const voidEffect = ctx.sideEffects?.find(e => e.type === 'VOID_DRAWN_CARD');
-      if (voidEffect) {
-        const idx = this.engine.hand.indexOf(card);
-        if (idx >= 0) this.engine.hand.splice(idx, 1);
-        this.engine.discardPile.push(card);
-        Logger.card('黑洞吞噬', Logger.fmtCard(card));
+      if (ctx.sideEffects && ctx.sideEffects.length > 0) {
+        const deltas = this.engine.applyEffects(ctx.sideEffects);
+        this.applyEffectDeltas(deltas);
       }
     }
 
@@ -850,13 +842,7 @@ export class BattleScene extends Phaser.Scene {
         }
       }
 
-      const handLabel = hands.map(h => {
-        const labels: Record<string, string> = {
-          single: '单张', pair: '对子', three_of_a_kind: '三条',
-          straight: '顺子', flush: '同花', straight_flush: '同花顺',
-        };
-        return labels[h.type] || h.type;
-      }).join('+');
+      const handLabel = hands.map(h => HAND_TYPE_LABELS[h.type] || h.type).join('+');
 
       const txt = this.add.text(centerX, layout.y - 50, `${handLabel} +${Math.floor(score)}`, {
         fontSize: '18px', color: '#ffdd44', fontFamily: 'monospace',
@@ -1011,7 +997,7 @@ export class BattleScene extends Phaser.Scene {
         weight: getLayerWeight(l),
         enhanceCardId: gs.enhanceSlots[i]?.id ?? null,
       })),
-      gameState: gs.getSnapshot(),
+      gameState: { ...gs.getSnapshot(), scoreChances: this.engine.scoreChances },
     };
   }
 }

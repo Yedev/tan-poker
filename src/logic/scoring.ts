@@ -1,6 +1,15 @@
 import type { CardData, DetectedHand, HandType } from '../types/card';
 import { HAND_TYPE_MULTIPLIERS } from '../config';
 
+export const HAND_TYPE_LABELS: Record<string, string> = {
+  single: '单张',
+  pair: '对子',
+  three_of_a_kind: '三条',
+  straight: '顺子',
+  flush: '同花',
+  straight_flush: '同花顺',
+};
+
 function isSameRank(cards: CardData[]): boolean {
   return cards.every(c => c.rank === cards[0].rank);
 }

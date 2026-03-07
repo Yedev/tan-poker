@@ -6,7 +6,7 @@ import { GameEventSystem } from '../events/GameEventSystem';
 import { GAME_EVENTS } from '../events/GameEvents';
 import { GameState } from '../state/GameState';
 import { shuffle, draw } from './deck';
-import { detectHandType, calculateBaseScore } from './scoring';
+import { detectHandType, calculateBaseScore, HAND_TYPE_LABELS } from './scoring';
 import { checkCollapse } from './collapse';
 import { Logger } from '../utils/Logger';
 import { SCORE_MULTIPLIER_CAP, HAND_SIZE_CAP, ENHANCE_DECAY_FLOOR } from '../config';
@@ -109,13 +109,7 @@ export class GameEngine {
 
       const hands = detectHandType(cards);
       const baseScore = calculateBaseScore(hands);
-      const handNames = hands.map(h => {
-        const labels: Record<string, string> = {
-          single: '单张', pair: '对子', three_of_a_kind: '三条',
-          straight: '顺子', flush: '同花', straight_flush: '同花顺',
-        };
-        return labels[h.type] || h.type;
-      }).join('+');
+      const handNames = hands.map(h => HAND_TYPE_LABELS[h.type] || h.type).join('+');
       Logger.score(`Layer${li}: [${Logger.fmtCards(cards)}]  手型=${handNames}  基础分=${baseScore}`);
 
       const layerCtx: ScoreLayerContext = {
@@ -177,27 +171,23 @@ export class GameEngine {
       Logger.effect(`执行副作用: ${effect.type}  参数: ${JSON.stringify(effect)}`);
       switch (effect.type) {
         case 'MODIFY_RANDOM_CARDS': {
-          const count = (effect.count as number) || 1;
-          const change = (effect.valueChange as number) || 0;
-          Logger.effect(`MODIFY_RANDOM_CARDS: 随机修改 ${count} 张棋盘牌  rank ${change >= 0 ? '+' : ''}${change}`);
-          deltas.push(...this._applyModifyCards(count, change));
+          Logger.effect(`MODIFY_RANDOM_CARDS: 随机修改 ${effect.count} 张棋盘牌  rank ${effect.valueChange >= 0 ? '+' : ''}${effect.valueChange}`);
+          deltas.push(...this._applyModifyCards(effect.count, effect.valueChange));
           deltas.push({ type: 'WEIGHT_UPDATE' });
           if (effect.recalculateCollapse) deltas.push({ type: 'COLLAPSE_CHECK' });
           break;
         }
         case 'MODIFY_TOTAL_SCORE': {
-          const mult = (effect.multiplier as number) || 1;
           const before = this.levelScore;
-          this.levelScore = Math.floor(this.levelScore * mult);
-          Logger.effect(`MODIFY_TOTAL_SCORE: ${before} × ${mult} → ${this.levelScore}`);
+          this.levelScore = Math.floor(this.levelScore * effect.multiplier);
+          Logger.effect(`MODIFY_TOTAL_SCORE: ${before} × ${effect.multiplier} → ${this.levelScore}`);
           deltas.push({ type: 'SCORE_CHANGED', newScore: this.levelScore });
           break;
         }
         case 'MODIFY_HAND_SIZE': {
-          const delta = (effect.delta as number) || 0;
           const before = gs.handSize;
-          gs.handSize = Math.max(1, Math.min(HAND_SIZE_CAP, gs.handSize + delta));
-          Logger.effect(`MODIFY_HAND_SIZE: ${before} → ${gs.handSize}  (${delta >= 0 ? '+' : ''}${delta})`);
+          gs.handSize = Math.max(1, Math.min(HAND_SIZE_CAP, gs.handSize + effect.delta));
+          Logger.effect(`MODIFY_HAND_SIZE: ${before} → ${gs.handSize}  (${effect.delta >= 0 ? '+' : ''}${effect.delta})`);
           if (effect.trimExcess) {
             while (this.hand.length > gs.handSize && this.hand.length > 0) {
               const removed = this.hand.pop()!;
@@ -209,34 +199,29 @@ export class GameEngine {
           break;
         }
         case 'DESTROY_RANDOM_SLOT': {
-          const li = (effect.layerIndex as number) ?? 2;
-          const cnt = (effect.count as number) || 1;
-          Logger.effect(`DESTROY_RANDOM_SLOT: Layer${li} 销毁 ${cnt} 个格子`);
-          deltas.push(...this._applyDestroySlots(li, cnt));
+          Logger.effect(`DESTROY_RANDOM_SLOT: Layer${effect.layerIndex} 销毁 ${effect.count} 个格子`);
+          deltas.push(...this._applyDestroySlots(effect.layerIndex, effect.count));
           deltas.push({ type: 'WEIGHT_UPDATE' });
+          if (effect.recalculateCollapse) deltas.push({ type: 'COLLAPSE_CHECK' });
           break;
         }
         case 'MODIFY_GOLD': {
-          const multiplier = (effect.multiplier as number) ?? 1;
-          const delta = (effect.delta as number) ?? 0;
           const before = gs.gold;
-          gs.gold = Math.max(0, Math.floor(gs.gold * multiplier) + delta);
+          gs.gold = Math.max(0, Math.floor(gs.gold * (effect.multiplier ?? 1)) + effect.delta);
           Logger.effect(`MODIFY_GOLD: ${before} → ${gs.gold}`);
           deltas.push({ type: 'GOLD_CHANGED', newGold: gs.gold });
           break;
         }
         case 'MODIFY_SCORE_CHANCE': {
-          const delta = (effect.delta as number) || 0;
           const before = this.scoreChances;
-          this.scoreChances = Math.max(1, this.scoreChances + delta);
+          this.scoreChances = Math.max(1, this.scoreChances + effect.delta);
           Logger.effect(`MODIFY_SCORE_CHANCE: ${before} → ${this.scoreChances}`);
           deltas.push({ type: 'SCORE_CHANCE_CHANGED', newChances: this.scoreChances });
           break;
         }
         case 'DISCARD_RANDOM_HAND': {
-          const count = (effect.count as number) || 1;
-          Logger.effect(`DISCARD_RANDOM_HAND: 随机弃 ${count} 张手牌`);
-          const discarded = shuffle([...this.hand]).slice(0, count);
+          Logger.effect(`DISCARD_RANDOM_HAND: 随机弃 ${effect.count} 张手牌`);
+          const discarded = shuffle([...this.hand]).slice(0, effect.count);
           for (const c of discarded) {
             const idx = this.hand.indexOf(c);
             if (idx >= 0) this.hand.splice(idx, 1);
@@ -246,16 +231,14 @@ export class GameEngine {
           break;
         }
         case 'DESTROY_RANDOM_BOARD_CARD': {
-          const count = (effect.count as number) || 1;
-          Logger.effect(`DESTROY_RANDOM_BOARD_CARD: 随机摧毁 ${count} 张棋盘牌`);
-          deltas.push(...this._applyDestroyBoardCards(count));
+          Logger.effect(`DESTROY_RANDOM_BOARD_CARD: 随机摧毁 ${effect.count} 张棋盘牌`);
+          deltas.push(...this._applyDestroyBoardCards(effect.count));
           deltas.push({ type: 'WEIGHT_UPDATE' });
           if (effect.recalculateCollapse) deltas.push({ type: 'COLLAPSE_CHECK' });
           break;
         }
         case 'APPLY_ENHANCE_DECAY': {
-          const factor = (effect.factor as number) ?? 0.9;
-          gs.enhanceDecayMultiplier = Math.max(ENHANCE_DECAY_FLOOR, gs.enhanceDecayMultiplier * factor);
+          gs.enhanceDecayMultiplier = Math.max(ENHANCE_DECAY_FLOOR, gs.enhanceDecayMultiplier * effect.factor);
           Logger.effect(`APPLY_ENHANCE_DECAY: 增强系数 → ${gs.enhanceDecayMultiplier.toFixed(3)}`);
           deltas.push({ type: 'ENHANCE_DECAYED', multiplier: gs.enhanceDecayMultiplier });
           break;
@@ -267,21 +250,47 @@ export class GameEngine {
           break;
         }
         case 'ADD_NEXT_SCORE_BONUS': {
-          const bonus = (effect.bonus as number) || 0;
-          gs.nextScoreFlatBonus += bonus;
-          Logger.effect(`ADD_NEXT_SCORE_BONUS: +${bonus}  (共 ${gs.nextScoreFlatBonus})`);
+          gs.nextScoreFlatBonus += effect.bonus;
+          Logger.effect(`ADD_NEXT_SCORE_BONUS: +${effect.bonus}  (共 ${gs.nextScoreFlatBonus})`);
           break;
         }
         case 'DISABLE_LAYER_SLOT': {
-          const li = (effect.layerIndex as number) ?? 1;
-          const si = (effect.slotIndex as number) ?? 0;
-          gs.disabledSlots.add(`${li}-${si}`);
-          Logger.effect(`DISABLE_LAYER_SLOT: Layer${li} Slot${si} 禁用`);
-          deltas.push({ type: 'SLOT_CLEARED', layerIndex: li, slotIndex: si });
+          gs.disabledSlots.add(`${effect.layerIndex}-${effect.slotIndex}`);
+          Logger.effect(`DISABLE_LAYER_SLOT: Layer${effect.layerIndex} Slot${effect.slotIndex} 禁用`);
+          deltas.push({ type: 'SLOT_CLEARED', layerIndex: effect.layerIndex, slotIndex: effect.slotIndex });
+          break;
+        }
+        case 'VOID_DRAWN_CARD': {
+          const idx = this.hand.indexOf(effect.card);
+          if (idx >= 0) {
+            this.hand.splice(idx, 1);
+            this.discardPile.push(effect.card);
+            Logger.card('黑洞吞噬', Logger.fmtCard(effect.card));
+          }
+          break;
+        }
+        case 'REPLACE_HAND_CARDS':
+          // handled externally if needed
+          break;
+        case 'TEMP_FOUNDATION_BONUS': {
+          gs.tempFoundationBonus += effect.bonus;
+          Logger.effect(`TEMP_FOUNDATION_BONUS: +${effect.bonus}  (共 ${gs.tempFoundationBonus})`);
+          break;
+        }
+        case 'DESTROY_SPECIFIC_CARD': {
+          const card = this.board[effect.layerIndex]?.pokerSlots[effect.slotIndex];
+          if (card) {
+            this.discardPile.push(card);
+            this.board[effect.layerIndex].pokerSlots[effect.slotIndex] = null;
+            Logger.card('精准爆破', `${Logger.fmtCard(card)} (Layer${effect.layerIndex}-Slot${effect.slotIndex})`);
+          }
+          deltas.push({ type: 'SLOT_CLEARED', layerIndex: effect.layerIndex, slotIndex: effect.slotIndex });
+          deltas.push({ type: 'WEIGHT_UPDATE' });
+          if (!effect.skipCollapse) deltas.push({ type: 'COLLAPSE_CHECK' });
           break;
         }
         default:
-          Logger.warn(`未知副作用类型: ${effect.type}`);
+          Logger.warn(`未知副作用类型: ${(effect as { type: string }).type}`);
       }
     }
     return deltas;
