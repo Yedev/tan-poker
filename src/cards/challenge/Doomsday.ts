@@ -14,7 +14,7 @@ export const Doomsday: ChallengeCardDef = {
   triggerEventName: GAME_EVENTS.SCORE_END,
   spriteFrame: 29,
 
-  getHandlers(): RegisteredHandler[] {
+  getHandlers(_rt): RegisteredHandler[] {
     return [{
       sourceId: 'challenge_doomsday',
       sourceType: 'challenge',

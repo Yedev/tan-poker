@@ -14,7 +14,7 @@ export const GravityAccel: ChallengeCardDef = {
   triggerEventName: GAME_EVENTS.SCORE_END,
   spriteFrame: 21,
 
-  getHandlers(): RegisteredHandler[] {
+  getHandlers(_rt): RegisteredHandler[] {
     return [{
       sourceId: 'challenge_gravity_accel',
       sourceType: 'challenge',

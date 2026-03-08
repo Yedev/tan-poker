@@ -2,6 +2,7 @@ import type { GamePhase } from '../types/game';
 import { Logger } from '../utils/Logger';
 
 const VALID_TRANSITIONS: Record<GamePhase, GamePhase[]> = {
+  IDLE:           ['LEVEL_START'],
   LEVEL_START:    ['PLAYER_PLACING'],
   PLAYER_PLACING: ['SCORING'],
   SCORING:        ['PLAYER_PLACING', 'LEVEL_END'],

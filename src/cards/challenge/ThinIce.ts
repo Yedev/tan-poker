@@ -15,7 +15,7 @@ export const ThinIce: ChallengeCardDef = {
   triggerEventName: GAME_EVENTS.CARD_PLACED,
   spriteFrame: 15,
 
-  getHandlers(): RegisteredHandler[] {
+  getHandlers(_rt): RegisteredHandler[] {
     return [{
       sourceId: 'challenge_thin_ice',
       sourceType: 'challenge',

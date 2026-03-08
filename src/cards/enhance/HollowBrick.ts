@@ -9,7 +9,7 @@ export const HollowBrick: EnhanceCardDef = {
   description: '本层计分牌面值翻倍，但该层在坍塌承重中视为 0',
   spriteFrame: 1,
 
-  getHandlers(layerIndex: number): RegisteredHandler[] {
+  getHandlers(layerIndex: number, _rt): RegisteredHandler[] {
     return [{
       sourceId: 'enhance_hollow_brick',
       sourceType: 'enhance',

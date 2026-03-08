@@ -1,7 +1,6 @@
 import type { ChallengeCardDef } from '../../types/card';
 import type { RegisteredHandler, ScoreEndContext } from '../../types/events';
 import { GAME_EVENTS } from '../../events/GameEvents';
-import { GameState } from '../../state/GameState';
 import { Logger } from '../../utils/Logger';
 
 /**
@@ -15,7 +14,7 @@ export const Petrify: ChallengeCardDef = {
   triggerEventName: GAME_EVENTS.SCORE_END,
   spriteFrame: 20,
 
-  getHandlers(): RegisteredHandler[] {
+  getHandlers(rt): RegisteredHandler[] {
     return [{
       sourceId: 'challenge_petrify',
       sourceType: 'challenge',
@@ -35,7 +34,6 @@ export const Petrify: ChallengeCardDef = {
         }
         if (maxLayer < 0) return;
 
-        const gs = GameState.getInstance();
         const highestResult = ctx.layerResults.find(r => r.layerIndex === maxLayer);
         if (!highestResult) return;
 
@@ -43,7 +41,7 @@ export const Petrify: ChallengeCardDef = {
         const petrifiedCount = highestResult.cards.length;
         // We don't know exact slot positions from results, so we store layer-level petrify
         // BattleScene will handle the visual & interaction blocking
-        gs.petrifiedSlots.add(`layer_${maxLayer}`);
+        rt.petrifiedSlots.add(`layer_${maxLayer}`);
 
         Logger.handler('石化凝固', 'challenge', 10, true,
           `计分结束 → 最高分层 Layer${maxLayer}(${maxScore.toFixed(0)}分) 石化 ${petrifiedCount} 张牌`);

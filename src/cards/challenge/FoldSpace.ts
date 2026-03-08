@@ -15,7 +15,7 @@ export const FoldSpace: ChallengeCardDef = {
   triggerEventName: GAME_EVENTS.LEVEL_START,
   spriteFrame: 19,
 
-  getHandlers(): RegisteredHandler[] {
+  getHandlers(_rt): RegisteredHandler[] {
     return [{
       sourceId: 'challenge_fold_space',
       sourceType: 'challenge',

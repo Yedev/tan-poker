@@ -13,7 +13,7 @@ export const Gambler: EnhanceCardDef = {
   description: '50%: 乘数×3.0；50%: 乘数×0.3（随机爆发）',
   spriteFrame: 6,
 
-  getHandlers(layerIndex: number): RegisteredHandler[] {
+  getHandlers(layerIndex: number, _rt): RegisteredHandler[] {
     return [{
       sourceId: 'enhance_gambler',
       sourceType: 'enhance',

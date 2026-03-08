@@ -14,7 +14,7 @@ export const TimePressure: ChallengeCardDef = {
   triggerEventName: GAME_EVENTS.LEVEL_START,
   spriteFrame: 18,
 
-  getHandlers(): RegisteredHandler[] {
+  getHandlers(_rt): RegisteredHandler[] {
     return [{
       sourceId: 'challenge_time_pressure',
       sourceType: 'challenge',

@@ -1,7 +1,6 @@
 import type { EnhanceCardDef } from '../../types/card';
 import type { RegisteredHandler, CardPlacedContext } from '../../types/events';
 import { GAME_EVENTS } from '../../events/GameEvents';
-import { GameState } from '../../state/GameState';
 import { Logger } from '../../utils/Logger';
 
 /**
@@ -15,7 +14,7 @@ export const MidasTouch: EnhanceCardDef = {
   description: '每放置一张A到棋盘，额外获得+8金币',
   spriteFrame: 8,
 
-  getHandlers(_layerIndex: number): RegisteredHandler[] {
+  getHandlers(_layerIndex: number, _rt): RegisteredHandler[] {
     return [{
       sourceId: 'enhance_midas_touch',
       sourceType: 'enhance',

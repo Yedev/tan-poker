@@ -9,7 +9,7 @@ export const RoyalExclusive: EnhanceCardDef = {
   description: '本层每有一张 J/Q/K，本层计分 +50',
   spriteFrame: 2,
 
-  getHandlers(layerIndex: number): RegisteredHandler[] {
+  getHandlers(layerIndex: number, _rt): RegisteredHandler[] {
     return [{
       sourceId: 'enhance_royal_exclusive',
       sourceType: 'enhance',

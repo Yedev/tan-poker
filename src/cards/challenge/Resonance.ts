@@ -1,7 +1,6 @@
 import type { ChallengeCardDef } from '../../types/card';
 import type { RegisteredHandler, ScoreLayerContext } from '../../types/events';
 import { GAME_EVENTS } from '../../events/GameEvents';
-import { GameState } from '../../state/GameState';
 import { Logger } from '../../utils/Logger';
 
 /**
@@ -15,18 +14,16 @@ export const Resonance: ChallengeCardDef = {
   triggerEventName: GAME_EVENTS.SCORE_LAYER,
   spriteFrame: 25,
 
-  getHandlers(): RegisteredHandler[] {
+  getHandlers(rt): RegisteredHandler[] {
     return [{
       sourceId: 'challenge_resonance',
       sourceType: 'challenge',
       eventName: GAME_EVENTS.SCORE_LAYER,
       priority: 15,
       handler(ctx: ScoreLayerContext) {
-        const gs = GameState.getInstance();
-        const prevSuits = gs.lastScoredLayerSuits;
+        const prevSuits = rt.lastScoredLayerSuits;
 
         if (prevSuits.length === 0 || ctx.cards.length === 0) {
-          // First layer or empty — no comparison
           Logger.handler('共鸣破坏', 'challenge', 15, false,
             `Layer${ctx.layerIndex}: 无上层记录，不触发`);
           return;

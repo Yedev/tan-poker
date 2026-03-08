@@ -14,7 +14,7 @@ export const DebtCollect: ChallengeCardDef = {
   triggerEventName: GAME_EVENTS.LEVEL_START,
   spriteFrame: 28,
 
-  getHandlers(): RegisteredHandler[] {
+  getHandlers(_rt): RegisteredHandler[] {
     return [{
       sourceId: 'challenge_debt_collect',
       sourceType: 'challenge',

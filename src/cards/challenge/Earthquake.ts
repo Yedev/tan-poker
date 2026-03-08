@@ -10,7 +10,7 @@ export const Earthquake: ChallengeCardDef = {
   triggerEventName: GAME_EVENTS.SCORE_END,
   spriteFrame: 11,
 
-  getHandlers(): RegisteredHandler[] {
+  getHandlers(_rt): RegisteredHandler[] {
     return [{
       sourceId: 'challenge_earthquake',
       sourceType: 'challenge',

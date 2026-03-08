@@ -13,7 +13,7 @@ export const GoldenPair: EnhanceCardDef = {
   description: '本层含对子 → 乘数+1.0；含三条 → 乘数+2.5',
   spriteFrame: 4,
 
-  getHandlers(layerIndex: number): RegisteredHandler[] {
+  getHandlers(layerIndex: number, _rt): RegisteredHandler[] {
     return [{
       sourceId: 'enhance_golden_pair',
       sourceType: 'enhance',

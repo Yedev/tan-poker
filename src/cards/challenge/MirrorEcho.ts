@@ -15,7 +15,7 @@ export const MirrorEcho: ChallengeCardDef = {
   triggerEventName: GAME_EVENTS.SCORE_LAYER,
   spriteFrame: 16,
 
-  getHandlers(): RegisteredHandler[] {
+  getHandlers(_rt): RegisteredHandler[] {
     return [{
       sourceId: 'challenge_mirror_echo',
       sourceType: 'challenge',

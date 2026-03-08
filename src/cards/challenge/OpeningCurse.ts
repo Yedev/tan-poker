@@ -10,7 +10,7 @@ export const OpeningCurse: ChallengeCardDef = {
   triggerEventName: GAME_EVENTS.LEVEL_START,
   spriteFrame: 13,
 
-  getHandlers(): RegisteredHandler[] {
+  getHandlers(_rt): RegisteredHandler[] {
     return [{
       sourceId: 'challenge_opening_curse',
       sourceType: 'challenge',

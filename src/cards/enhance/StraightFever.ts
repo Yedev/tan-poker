@@ -10,7 +10,7 @@ export const StraightFever: EnhanceCardDef = {
   description: '本层含顺子时，本层计分乘区 +2.0',
   spriteFrame: 0,
 
-  getHandlers(layerIndex: number): RegisteredHandler[] {
+  getHandlers(layerIndex: number, _rt): RegisteredHandler[] {
     return [{
       sourceId: 'enhance_straight_fever',
       sourceType: 'enhance',

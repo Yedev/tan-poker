@@ -10,7 +10,7 @@ export const AcidRain: ChallengeCardDef = {
   triggerEventName: GAME_EVENTS.SCORE_END,
   spriteFrame: 10,
 
-  getHandlers(): RegisteredHandler[] {
+  getHandlers(_rt): RegisteredHandler[] {
     return [{
       sourceId: 'challenge_acid_rain',
       sourceType: 'challenge',

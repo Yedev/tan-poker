@@ -15,7 +15,7 @@ export const LayerLink: EnhanceCardDef = {
   description: '相邻层均有牌时，本层乘数+0.5；相邻层各+0.25',
   spriteFrame: 7,
 
-  getHandlers(layerIndex: number): RegisteredHandler[] {
+  getHandlers(layerIndex: number, _rt): RegisteredHandler[] {
     return [{
       sourceId: 'enhance_layer_link',
       sourceType: 'enhance',

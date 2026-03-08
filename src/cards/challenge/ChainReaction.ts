@@ -14,7 +14,7 @@ export const ChainReaction: ChallengeCardDef = {
   triggerEventName: GAME_EVENTS.COLLAPSE_TRIGGERED,
   spriteFrame: 22,
 
-  getHandlers(): RegisteredHandler[] {
+  getHandlers(_rt): RegisteredHandler[] {
     return [{
       sourceId: 'challenge_chain_reaction',
       sourceType: 'challenge',

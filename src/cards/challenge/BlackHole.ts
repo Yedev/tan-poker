@@ -1,7 +1,6 @@
 import type { ChallengeCardDef } from '../../types/card';
 import type { RegisteredHandler, CardDrawnContext } from '../../types/events';
 import { GAME_EVENTS } from '../../events/GameEvents';
-import { GameState } from '../../state/GameState';
 import { Logger } from '../../utils/Logger';
 
 /**
@@ -16,17 +15,16 @@ export const BlackHole: ChallengeCardDef = {
   triggerEventName: GAME_EVENTS.CARD_DRAWN,
   spriteFrame: 24,
 
-  getHandlers(): RegisteredHandler[] {
+  getHandlers(rt): RegisteredHandler[] {
     return [{
       sourceId: 'challenge_black_hole',
       sourceType: 'challenge',
       eventName: GAME_EVENTS.CARD_DRAWN,
       priority: 10,
       handler(ctx: CardDrawnContext) {
-        const gs = GameState.getInstance();
-        gs.drawnCardCount++;
+        rt.drawnCardCount++;
 
-        if (gs.drawnCardCount % 5 === 0) {
+        if (rt.drawnCardCount % 5 === 0) {
           // Mark this card to be discarded — BattleScene will check sideEffects
           if (!ctx.sideEffects) ctx.sideEffects = [];
           ctx.sideEffects.push({
@@ -34,10 +32,10 @@ export const BlackHole: ChallengeCardDef = {
             card: ctx.card,
           });
           Logger.handler('黑洞吸积', 'challenge', 10, true,
-            `第 ${gs.drawnCardCount} 张牌 [${ctx.card.suit}${ctx.card.rank}] → 被黑洞吞噬`);
+            `第 ${rt.drawnCardCount} 张牌 [${ctx.card.suit}${ctx.card.rank}] → 被黑洞吞噬`);
         } else {
           Logger.handler('黑洞吸积', 'challenge', 10, false,
-            `摸牌计数: ${gs.drawnCardCount} (下次吞噬: ${5 - (gs.drawnCardCount % 5)} 张后)`);
+            `摸牌计数: ${rt.drawnCardCount} (下次吞噬: ${5 - (rt.drawnCardCount % 5)} 张后)`);
         }
       },
     }];

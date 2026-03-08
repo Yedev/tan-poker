@@ -1,4 +1,5 @@
 import type { RegisteredHandler } from './events';
+import type { LevelRuntime } from '../state/LevelRuntime'; // used in getHandlers signatures below
 
 export type Suit = 'spades' | 'hearts' | 'clubs' | 'diamonds';
 export type Rank = 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14;
@@ -32,7 +33,7 @@ export interface EnhanceCardDef {
   name: string;
   description: string;
   spriteFrame: number;
-  getHandlers(layerIndex: number): RegisteredHandler[];
+  getHandlers(layerIndex: number, rt: LevelRuntime): RegisteredHandler[];
 }
 
 export interface ChallengeCardDef {
@@ -41,7 +42,7 @@ export interface ChallengeCardDef {
   description: string;
   triggerEventName: string;
   spriteFrame: number;
-  getHandlers(): RegisteredHandler[];
+  getHandlers(rt: LevelRuntime): RegisteredHandler[];
 }
 
 export interface ConsumeCardDef {

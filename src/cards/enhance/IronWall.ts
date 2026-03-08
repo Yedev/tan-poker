@@ -13,7 +13,7 @@ export const IronWall: EnhanceCardDef = {
   description: '本层承重 ≥ 上方所有层权重之和时，乘数+1.5',
   spriteFrame: 5,
 
-  getHandlers(layerIndex: number): RegisteredHandler[] {
+  getHandlers(layerIndex: number, _rt): RegisteredHandler[] {
     return [{
       sourceId: 'enhance_iron_wall',
       sourceType: 'enhance',

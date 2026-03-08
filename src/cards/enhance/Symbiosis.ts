@@ -14,7 +14,7 @@ export const Symbiosis: EnhanceCardDef = {
   description: '所有层计分后，最低分层的得分均分给其他层（均衡加成）',
   spriteFrame: 15,
 
-  getHandlers(_layerIndex: number): RegisteredHandler[] {
+  getHandlers(_layerIndex: number, _rt): RegisteredHandler[] {
     return [{
       sourceId: 'enhance_symbiosis',
       sourceType: 'enhance',

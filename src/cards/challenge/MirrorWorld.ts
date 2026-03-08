@@ -17,7 +17,7 @@ export const MirrorWorld: ChallengeCardDef = {
   triggerEventName: GAME_EVENTS.SCORE_LAYER,
   spriteFrame: 27,
 
-  getHandlers(): RegisteredHandler[] {
+  getHandlers(_rt): RegisteredHandler[] {
     return [{
       sourceId: 'challenge_mirror_world',
       sourceType: 'challenge',

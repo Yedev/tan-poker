@@ -14,7 +14,7 @@ export const Headwind: ChallengeCardDef = {
   triggerEventName: GAME_EVENTS.SCORE_LAYER,
   spriteFrame: 23,
 
-  getHandlers(): RegisteredHandler[] {
+  getHandlers(_rt): RegisteredHandler[] {
     return [{
       sourceId: 'challenge_headwind',
       sourceType: 'challenge',

@@ -14,7 +14,7 @@ export const TimeCrystal: EnhanceCardDef = {
   description: '每轮计分后本层乘数+0.3（累积叠加，上限+1.5）',
   spriteFrame: 11,
 
-  getHandlers(layerIndex: number): RegisteredHandler[] {
+  getHandlers(layerIndex: number, _rt): RegisteredHandler[] {
     return [{
       sourceId: 'enhance_time_crystal',
       sourceType: 'enhance',

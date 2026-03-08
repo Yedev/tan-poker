@@ -13,7 +13,7 @@ export const FlushCatalyst: EnhanceCardDef = {
   description: '本层含同花 → 乘数+2.5；同花顺额外+1.0',
   spriteFrame: 9,
 
-  getHandlers(layerIndex: number): RegisteredHandler[] {
+  getHandlers(layerIndex: number, _rt): RegisteredHandler[] {
     return [{
       sourceId: 'enhance_flush_catalyst',
       sourceType: 'enhance',

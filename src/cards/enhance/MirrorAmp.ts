@@ -14,7 +14,7 @@ export const MirrorAmp: EnhanceCardDef = {
   description: '本层乘数 + 相邻层加值/100（协同皇室专属等加值型增强）',
   spriteFrame: 12,
 
-  getHandlers(layerIndex: number): RegisteredHandler[] {
+  getHandlers(layerIndex: number, _rt): RegisteredHandler[] {
     return [{
       sourceId: 'enhance_mirror_amp',
       sourceType: 'enhance',

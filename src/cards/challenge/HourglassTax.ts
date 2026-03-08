@@ -14,7 +14,7 @@ export const HourglassTax: ChallengeCardDef = {
   triggerEventName: GAME_EVENTS.SCORE_LAYER,
   spriteFrame: 14,
 
-  getHandlers(): RegisteredHandler[] {
+  getHandlers(_rt): RegisteredHandler[] {
     return [{
       sourceId: 'challenge_hourglass_tax',
       sourceType: 'challenge',

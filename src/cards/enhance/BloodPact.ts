@@ -13,7 +13,7 @@ export const BloodPact: EnhanceCardDef = {
   description: '本层乘数×2.5，但计分后随机弃1张手牌（高风险高回报）',
   spriteFrame: 10,
 
-  getHandlers(layerIndex: number): RegisteredHandler[] {
+  getHandlers(layerIndex: number, _rt): RegisteredHandler[] {
     return [{
       sourceId: 'enhance_blood_pact',
       sourceType: 'enhance',

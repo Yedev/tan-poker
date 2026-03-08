@@ -14,7 +14,7 @@ export const RawCalculus: EnhanceCardDef = {
   description: '基础分翻倍，乘数强制为1.0（克制镜像回声）',
   spriteFrame: 14,
 
-  getHandlers(layerIndex: number): RegisteredHandler[] {
+  getHandlers(layerIndex: number, _rt): RegisteredHandler[] {
     return [{
       sourceId: 'enhance_raw_calculus',
       sourceType: 'enhance',
