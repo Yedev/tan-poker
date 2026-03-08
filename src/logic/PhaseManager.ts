@@ -9,7 +9,7 @@ const VALID_TRANSITIONS: Record<GamePhase, GamePhase[]> = {
 };
 
 export class PhaseManager {
-  private phase: GamePhase = 'LEVEL_START';
+  private phase: GamePhase = 'IDLE';
   private onPhaseChange?: (phase: GamePhase) => void;
 
   constructor(onPhaseChange?: (phase: GamePhase) => void) {

@@ -1,9 +1,9 @@
 import Phaser from 'phaser';
-import { GameState } from '../state/GameState';
+import { PlayerProfile } from '../state/PlayerProfile';
 import { AllEnhanceCards } from '../cards/enhance';
-import { getChallengeCardsByTier, Doomsday } from '../cards/challenge';
+import { generateChallengeCards } from '../cards/challenge';
 import { EnhanceCard } from '../gameobjects/EnhanceCard';
-import type { EnhanceCardDef, ChallengeCardDef } from '../types/card';
+import type { EnhanceCardDef } from '../types/card';
 import { ENHANCE_SLOT_SIZE, BOARD_LAYOUT, GAME_WIDTH, GAME_HEIGHT } from '../config';
 import { getLevelConfig } from '../config/levels';
 import { Logger } from '../utils/Logger';
@@ -32,11 +32,11 @@ export class ShopScene extends Phaser.Scene {
   }
 
   init(data: { level?: number }) {
-    this.level = data.level ?? GameState.getInstance().currentLevel;
+    this.level = data.level ?? PlayerProfile.getInstance().currentLevel;
   }
 
   create() {
-    const gs = GameState.getInstance();
+    const profile = PlayerProfile.getInstance();
     const cfg = getLevelConfig(this.level);
 
     this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'game_bg');
@@ -45,17 +45,17 @@ export class ShopScene extends Phaser.Scene {
       fontSize: '32px', color: '#e8d8b8', fontFamily: 'serif',
     }).setOrigin(0.5);
 
-    this.goldText = this.add.text(640, 85, `金币: ${gs.gold}`, {
+    this.goldText = this.add.text(640, 85, `金币: ${profile.gold}`, {
       fontSize: '24px', color: '#ffdd88', fontFamily: 'monospace',
     }).setOrigin(0.5);
 
-    this.add.text(20, 20, `总分: ${gs.score}`, { fontSize: '16px', color: '#cccccc', fontFamily: 'monospace' });
-    this.add.text(20, 46, `牌组: ${gs.deck.length} 张`, { fontSize: '16px', color: '#aaaaaa', fontFamily: 'monospace' });
+    this.add.text(20, 20, `总分: ${profile.score}`, { fontSize: '16px', color: '#cccccc', fontFamily: 'monospace' });
+    this.add.text(20, 46, `牌组: ${profile.playerBuild.deck.length} 张`, { fontSize: '16px', color: '#aaaaaa', fontFamily: 'monospace' });
     this.add.text(20, 72, `增强槽: ${cfg.enhanceSlotCount} 个`, { fontSize: '14px', color: '#aabbcc', fontFamily: 'monospace' });
     this.add.text(20, 94, `挑战卡: ${cfg.challengeSlotCount} 张`, { fontSize: '14px', color: '#ffaaaa', fontFamily: 'monospace' });
 
     // Pick challenge cards for this level
-    this.setupChallengeCards(cfg.challengeSlotCount, cfg.challengePools, cfg.forceDoomsday);
+    this.setupChallengeCards(cfg.challengeSlotCount, cfg);
 
     this.createLayerSlots(cfg.enhanceSlotCount);
     this.createInventorySlots();
@@ -73,50 +73,20 @@ export class ShopScene extends Phaser.Scene {
     });
   }
 
-  private setupChallengeCards(
-    slotCount: number,
-    pools: { tier: 1 | 2 | 3 | 4; count: number }[],
-    forceDoomsday?: boolean,
-  ) {
-    const gs = GameState.getInstance();
-    if (slotCount === 0) {
-      gs.challengeCards = [];
-      return;
-    }
+  private setupChallengeCards(slotCount: number, levelConfig: ReturnType<typeof getLevelConfig>) {
+    // Generate challenge cards from level config (same logic as BattleScene)
+    const challengeCards = generateChallengeCards(levelConfig);
 
-    const selected: ChallengeCardDef[] = [];
-
-    // Mandatory doomsday for level 20
-    if (forceDoomsday) {
-      selected.push(Doomsday);
-    }
-
-    // Pick cards from each tier pool
-    for (const pool of pools) {
-      const tier = pool.tier;
-      const poolCards = getChallengeCardsByTier(tier).filter(
-        c => !selected.some(s => s.id === c.id),
-      );
-      const shuffled = Phaser.Math.RND.shuffle([...poolCards]);
-      const picks = shuffled.slice(0, pool.count);
-      selected.push(...picks);
-    }
-
-    // Trim to slot count
-    const final = selected.slice(0, slotCount);
-    gs.challengeCards = final;
-    gs.activeChallengeIndex = 0;
-
-    Logger.info(`[ShopScene] 关${this.level} 挑战卡 (${final.length}张): ${final.map(c => c.name).join(', ')}`);
+    Logger.info(`[ShopScene] 关${this.level} 挑战卡 (${challengeCards.length}张): ${challengeCards.map(c => c.name).join(', ')}`);
 
     // Show challenge card info on screen
-    if (final.length > 0) {
+    if (challengeCards.length > 0) {
       const startY = 120;
       this.add.text(GAME_WIDTH - 20, startY - 20, '本关挑战卡', {
         fontSize: '14px', color: '#ff8888', fontFamily: 'monospace',
       }).setOrigin(1, 0.5);
 
-      final.forEach((card, i) => {
+      challengeCards.forEach((card, i) => {
         this.add.text(GAME_WIDTH - 20, startY + i * 40, `⚡ ${card.name}`, {
           fontSize: '13px', color: '#ffaaaa', fontFamily: 'monospace',
         }).setOrigin(1, 0);
@@ -190,16 +160,16 @@ export class ShopScene extends Phaser.Scene {
       fontSize: '18px', color: '#aaaaaa', fontFamily: 'sans-serif',
     }).setOrigin(0.5);
 
-    const gs = GameState.getInstance();
-    const hasBlackMarket = (gs as any).blackMarketDiscount === true;
+    const profile = PlayerProfile.getInstance();
+    const hasBlackMarket = profile.blackMarketDiscount;
     if (hasBlackMarket) {
-      (gs as any).blackMarketDiscount = false;
+      profile.blackMarketDiscount = false;
     }
 
     // Pick up to 3 cards not already owned
     const owned = new Set([
-      ...gs.enhanceSlots.filter(Boolean).map(c => c!.id),
-      ...gs.enhanceInventory.map(c => c.id),
+      ...profile.playerBuild.activeEnhanceCards.filter(Boolean).map(c => c!.id),
+      ...profile.playerBuild.enhanceInventory.map(c => c.id),
     ]);
     const available = AllEnhanceCards.filter(c => !owned.has(c.id));
     const shuffled = Phaser.Math.RND.shuffle([...available]);
@@ -247,24 +217,24 @@ export class ShopScene extends Phaser.Scene {
     const item = this.shopItems[index];
     if (!item || !item.obj) return;
 
-    const gs = GameState.getInstance();
-    if (gs.gold < item.cost) {
+    const profile = PlayerProfile.getInstance();
+    if (profile.gold < item.cost) {
       Logger.warn('金币不足');
       this.cameras.main.shake(200, 0.005);
       return;
     }
 
-    if (gs.enhanceInventory.length >= INVENTORY_SIZE) {
+    if (profile.playerBuild.enhanceInventory.length >= INVENTORY_SIZE) {
       Logger.warn('备用栏已满');
       this.cameras.main.shake(200, 0.005);
       return;
     }
 
-    gs.gold -= item.cost;
-    this.goldText.setText(`金币: ${gs.gold}`);
+    profile.gold -= item.cost;
+    this.goldText.setText(`金币: ${profile.gold}`);
 
-    gs.enhanceInventory.push(item.def);
-    Logger.info(`购买增强卡: ${item.def.name}  花费 ${item.cost} 金 (剩余 ${gs.gold})`);
+    profile.playerBuild.enhanceInventory.push(item.def);
+    Logger.info(`购买增强卡: ${item.def.name}  花费 ${item.cost} 金 (剩余 ${profile.gold})`);
 
     item.obj.destroy();
     this.shopItems[index].obj = undefined;
@@ -276,9 +246,9 @@ export class ShopScene extends Phaser.Scene {
     this.cardObjects.forEach(c => c.destroy());
     this.cardObjects = [];
 
-    const gs = GameState.getInstance();
+    const profile = PlayerProfile.getInstance();
 
-    gs.enhanceSlots.forEach((def, i) => {
+    profile.playerBuild.activeEnhanceCards.forEach((def, i) => {
       if (def) {
         const zone = this.layerZones[i];
         if (!zone) return;
@@ -290,7 +260,7 @@ export class ShopScene extends Phaser.Scene {
       }
     });
 
-    gs.enhanceInventory.forEach((def, i) => {
+    profile.playerBuild.enhanceInventory.forEach((def, i) => {
       if (def) {
         const zone = this.inventoryZones[i];
         if (!zone) return;
@@ -330,30 +300,31 @@ export class ShopScene extends Phaser.Scene {
         return;
       }
 
-      const gs = GameState.getInstance();
+      const profile = PlayerProfile.getInstance();
 
+      const pa = profile.playerBuild;
       const sourceDef: EnhanceCardDef | null = sourceType === 'layer'
-        ? gs.enhanceSlots[sourceIndex]
-        : (gs.enhanceInventory[sourceIndex] || null);
+        ? pa.activeEnhanceCards[sourceIndex]
+        : (pa.enhanceInventory[sourceIndex] || null);
       const targetDef: EnhanceCardDef | null = targetType === 'layer'
-        ? gs.enhanceSlots[targetIndex]
-        : (gs.enhanceInventory[targetIndex] || null);
+        ? pa.activeEnhanceCards[targetIndex]
+        : (pa.enhanceInventory[targetIndex] || null);
 
-      const newInventory: (EnhanceCardDef | null)[] = [...gs.enhanceInventory];
+      const newInventory: (EnhanceCardDef | null)[] = [...pa.enhanceInventory];
 
       if (sourceType === 'layer') {
-        gs.enhanceSlots[sourceIndex] = targetDef;
+        pa.activeEnhanceCards[sourceIndex] = targetDef;
       } else {
         newInventory[sourceIndex] = targetDef;
       }
 
       if (targetType === 'layer') {
-        gs.enhanceSlots[targetIndex] = sourceDef;
+        pa.activeEnhanceCards[targetIndex] = sourceDef;
       } else {
         newInventory[targetIndex] = sourceDef;
       }
 
-      gs.enhanceInventory = newInventory.filter((x): x is EnhanceCardDef => x !== null);
+      pa.enhanceInventory = newInventory.filter((x): x is EnhanceCardDef => x !== null);
 
       this.refreshCards();
     });

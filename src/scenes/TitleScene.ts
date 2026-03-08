@@ -1,12 +1,9 @@
 import Phaser from 'phaser';
-import { GameState } from '../state/GameState';
+import { PlayerProfile } from '../state/PlayerProfile';
 import { createDeck } from '../logic/deck';
 import { StraightFever } from '../cards/enhance/StraightFever';
 import { RoyalExclusive } from '../cards/enhance/RoyalExclusive';
 import { HollowBrick } from '../cards/enhance/HollowBrick';
-import { AcidRain } from '../cards/challenge/AcidRain';
-import { Earthquake } from '../cards/challenge/Earthquake';
-import { Detention } from '../cards/challenge/Detention';
 import { CARD_WIDTH, CARD_HEIGHT, GAME_WIDTH, GAME_HEIGHT, SUITS } from '../config';
 
 // Card strip display dimensions
@@ -94,11 +91,10 @@ export class TitleScene extends Phaser.Scene {
     btn.on('pointerover', () => btn.setTint(0xccccff));
     btn.on('pointerout', () => btn.clearTint());
     btn.on('pointerup', () => {
-      const gs = GameState.getInstance();
-      gs.reset();
-      gs.deck = createDeck();
-      gs.enhanceSlots = [StraightFever, RoyalExclusive, HollowBrick];
-      gs.challengeCards = [AcidRain, Earthquake, Detention];
+      const profile = PlayerProfile.getInstance();
+      profile.reset();
+      profile.playerBuild.deck = createDeck();
+      profile.playerBuild.activeEnhanceCards = [StraightFever, RoyalExclusive, HollowBrick, null];
       this.scene.start('BattleScene', { level: 1 });
     });
   }

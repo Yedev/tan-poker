@@ -3,15 +3,7 @@ import type { RegisteredHandler, BaseEventContext } from '../types/events';
 import { Logger } from '../utils/Logger';
 
 export class GameEventSystem {
-  private static instance: GameEventSystem;
   private handlers: RegisteredHandler[] = [];
-
-  static getInstance(): GameEventSystem {
-    if (!GameEventSystem.instance) {
-      GameEventSystem.instance = new GameEventSystem();
-    }
-    return GameEventSystem.instance;
-  }
 
   register(handler: RegisteredHandler): void {
     this.handlers.push(handler);

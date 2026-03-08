@@ -1,6 +1,5 @@
 import Phaser from 'phaser';
-import { GameState } from '../state/GameState';
-import { GameEventSystem } from '../events/GameEventSystem';
+import { PlayerProfile } from '../state/PlayerProfile';
 import { GAME_WIDTH, GAME_HEIGHT } from '../config';
 
 export class GameOverScene extends Phaser.Scene {
@@ -9,10 +8,9 @@ export class GameOverScene extends Phaser.Scene {
   }
 
   create() {
-    GameEventSystem.getInstance().unregisterAll();
     this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'game_bg');
 
-    const gs = GameState.getInstance();
+    const gs = PlayerProfile.getInstance();
 
     this.add.text(640, 200, '游戏结束', {
       fontSize: '56px', color: '#cc4444', fontFamily: 'serif',

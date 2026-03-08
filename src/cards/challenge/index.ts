@@ -1,3 +1,5 @@
+import Phaser from 'phaser';
+
 export { AcidRain } from './AcidRain';
 export { Earthquake } from './Earthquake';
 export { Detention } from './Detention';
@@ -40,6 +42,7 @@ import { MirrorWorld } from './MirrorWorld';
 import { DebtCollect } from './DebtCollect';
 import { Doomsday } from './Doomsday';
 import type { ChallengeCardDef } from '../../types/card';
+import type { LevelConfig } from '../../config/levels';
 
 /** Tier1 ★★☆☆ — 关2~5 */
 export const Tier1ChallengeCards: ChallengeCardDef[] = [
@@ -92,4 +95,21 @@ export function getChallengeCardsByTier(tier: 1 | 2 | 3 | 4): ChallengeCardDef[]
     case 3: return Tier3ChallengeCards;
     case 4: return Tier4ChallengeCards;
   }
+}
+
+/**
+ * 根据关卡配置的 challengePools 随机生成挑战卡数组
+ */
+export function generateChallengeCards(levelConfig: LevelConfig): ChallengeCardDef[] {
+  const result: ChallengeCardDef[] = [];
+  const rng = Phaser.Math.RND;
+
+  for (const pool of levelConfig.challengePools) {
+    const tierCards = getChallengeCardsByTier(pool.tier);
+    const shuffled = rng.shuffle(tierCards);
+    const selected = shuffled.slice(0, pool.count);
+    result.push(...selected);
+  }
+
+  return result;
 }

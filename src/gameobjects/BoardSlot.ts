@@ -46,9 +46,4 @@ export class BoardSlot {
         break;
     }
   }
-
-  destroy(): void {
-    this.bg.destroy();
-    this.zone.destroy();
-  }
 }

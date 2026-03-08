@@ -1,10 +1,12 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import type { CardData, DetectedHand } from '../types/card';
 import type { ScoreLayerContext, CardDrawnContext } from '../types/events';
 import { GameEventSystem } from '../events/GameEventSystem';
 import { GAME_EVENTS } from '../events/GameEvents';
 import { detectHandType, calculateBaseScore } from '../logic/scoring';
-import { GameState } from '../state/GameState';
+import { PlayerProfile } from '../state/PlayerProfile';
+import { LevelRuntime } from '../state/LevelRuntime';
+import { getLevelConfig } from '../config/levels';
 import { StraightFever } from '../cards/enhance/StraightFever';
 import { HollowBrick } from '../cards/enhance/HollowBrick';
 import { RoyalExclusive } from '../cards/enhance/RoyalExclusive';
@@ -17,11 +19,24 @@ function card(suit: CardData['suit'], rank: CardData['rank']): CardData {
 function makeScoreLayerCtx(layerIndex: number, cards: CardData[]): ScoreLayerContext {
   const hands = detectHandType(cards);
   const baseScore = calculateBaseScore(hands);
+  const profile = PlayerProfile.getInstance();
   return {
     phase: 'SCORING',
     level: 1,
     board: [],
-    gameState: GameState.getInstance().getSnapshot(),
+    gameState: {
+      level: profile.currentLevel,
+      score: profile.score,
+      gold: profile.gold,
+      foundation: profile.foundation,
+      handSize: 5,
+      scoreChances: 3,
+      discardChances: 2,
+      enhanceDecayMultiplier: 1.0,
+      scoringRoundsElapsed: 0,
+      prevLevelScore: profile.prevLevelScore,
+      prevLevelTarget: profile.prevLevelTarget,
+    },
     layerIndex,
     cards,
     detectedHandTypes: hands,
@@ -92,13 +107,12 @@ describe('StraightFever (顺子狂热)', () => {
   let ges: GameEventSystem;
 
   beforeEach(() => {
-    ges = GameEventSystem.getInstance();
-    ges.unregisterAll();
+    ges = new GameEventSystem();
   });
 
   it('adds +2.0 multiplier when layer has a straight', () => {
     const LAYER = 2;
-    ges.registerAll(StraightFever.getHandlers(LAYER));
+    ges.registerAll(StraightFever.getHandlers(LAYER, null as any));
 
     const cards = [card('spades', 5), card('hearts', 6), card('clubs', 7)];
     const ctx = makeScoreLayerCtx(LAYER, cards);
@@ -113,7 +127,7 @@ describe('StraightFever (顺子狂热)', () => {
 
   it('adds +2.0 multiplier for straight flush too', () => {
     const LAYER = 1;
-    ges.registerAll(StraightFever.getHandlers(LAYER));
+    ges.registerAll(StraightFever.getHandlers(LAYER, null as any));
 
     const cards = [card('hearts', 10), card('hearts', 11), card('hearts', 12)];
     const ctx = makeScoreLayerCtx(LAYER, cards);
@@ -124,7 +138,7 @@ describe('StraightFever (顺子狂热)', () => {
 
   it('does NOT fire for a non-straight hand on same layer', () => {
     const LAYER = 0;
-    ges.registerAll(StraightFever.getHandlers(LAYER));
+    ges.registerAll(StraightFever.getHandlers(LAYER, null as any));
 
     const cards = [card('spades', 2), card('hearts', 2), card('clubs', 4)];
     const ctx = makeScoreLayerCtx(LAYER, cards);
@@ -134,7 +148,7 @@ describe('StraightFever (顺子狂热)', () => {
   });
 
   it('does NOT fire for a different layer', () => {
-    ges.registerAll(StraightFever.getHandlers(2)); // installed on layer 2
+    ges.registerAll(StraightFever.getHandlers(2, null as any)); // installed on layer 2
 
     const cards = [card('spades', 5), card('hearts', 6), card('clubs', 7)];
     const ctx = makeScoreLayerCtx(0, cards); // scoring layer 0
@@ -150,13 +164,12 @@ describe('HollowBrick (空心砖)', () => {
   let ges: GameEventSystem;
 
   beforeEach(() => {
-    ges = GameEventSystem.getInstance();
-    ges.unregisterAll();
+    ges = new GameEventSystem();
   });
 
   it('doubles score multiplier and sets weight to 0', () => {
     const LAYER = 1;
-    ges.registerAll(HollowBrick.getHandlers(LAYER));
+    ges.registerAll(HollowBrick.getHandlers(LAYER, null as any));
 
     const cards = [card('spades', 10), card('hearts', 11)];
     const ctx = makeScoreLayerCtx(LAYER, cards);
@@ -168,7 +181,7 @@ describe('HollowBrick (空心砖)', () => {
 
   it('stacks multiplicatively with existing multiplier', () => {
     const LAYER = 0;
-    ges.registerAll(HollowBrick.getHandlers(LAYER));
+    ges.registerAll(HollowBrick.getHandlers(LAYER, null as any));
 
     const cards = [card('spades', 14)]; // single A
     const ctx = makeScoreLayerCtx(LAYER, cards);
@@ -180,7 +193,7 @@ describe('HollowBrick (空心砖)', () => {
   });
 
   it('ignores other layers', () => {
-    ges.registerAll(HollowBrick.getHandlers(2));
+    ges.registerAll(HollowBrick.getHandlers(2, null as any));
 
     const cards = [card('spades', 5)];
     const ctx = makeScoreLayerCtx(0, cards);
@@ -197,13 +210,12 @@ describe('RoyalExclusive (皇室专属)', () => {
   let ges: GameEventSystem;
 
   beforeEach(() => {
-    ges = GameEventSystem.getInstance();
-    ges.unregisterAll();
+    ges = new GameEventSystem();
   });
 
   it('adds +50 per J/Q/K on the layer', () => {
     const LAYER = 2;
-    ges.registerAll(RoyalExclusive.getHandlers(LAYER));
+    ges.registerAll(RoyalExclusive.getHandlers(LAYER, null as any));
 
     // 3 royals: J(11), Q(12), K(13)
     const cards = [card('spades', 11), card('hearts', 12), card('clubs', 13)];
@@ -215,7 +227,7 @@ describe('RoyalExclusive (皇室专属)', () => {
 
   it('adds +100 for two royals mixed with a non-royal', () => {
     const LAYER = 1;
-    ges.registerAll(RoyalExclusive.getHandlers(LAYER));
+    ges.registerAll(RoyalExclusive.getHandlers(LAYER, null as any));
 
     const cards = [card('spades', 11), card('hearts', 5), card('clubs', 13)];
     const ctx = makeScoreLayerCtx(LAYER, cards);
@@ -226,7 +238,7 @@ describe('RoyalExclusive (皇室专属)', () => {
 
   it('adds +0 when no royals are present', () => {
     const LAYER = 0;
-    ges.registerAll(RoyalExclusive.getHandlers(LAYER));
+    ges.registerAll(RoyalExclusive.getHandlers(LAYER, null as any));
 
     const cards = [card('spades', 2)];
     const ctx = makeScoreLayerCtx(LAYER, cards);
@@ -237,7 +249,7 @@ describe('RoyalExclusive (皇室专属)', () => {
 
   it('does NOT count Ace (14) as royal', () => {
     const LAYER = 2;
-    ges.registerAll(RoyalExclusive.getHandlers(LAYER));
+    ges.registerAll(RoyalExclusive.getHandlers(LAYER, null as any));
 
     const cards = [card('spades', 14), card('hearts', 14), card('clubs', 14)];
     const ctx = makeScoreLayerCtx(LAYER, cards);
@@ -251,66 +263,66 @@ describe('RoyalExclusive (皇室专属)', () => {
 
 describe('LuckyDraw (幸运摸牌)', () => {
   let ges: GameEventSystem;
-  let gs: GameState;
+  let rt: LevelRuntime;
 
   beforeEach(() => {
-    ges = GameEventSystem.getInstance();
-    ges.unregisterAll();
-    gs = GameState.getInstance();
-    gs.reset();
+    ges = new GameEventSystem();
+    const profile = PlayerProfile.getInstance();
+    profile.reset();
+    rt = LevelRuntime.create(getLevelConfig(1), [], profile);
   });
 
   it('increases handSize by 1 when an Ace is drawn', () => {
-    ges.registerAll(LuckyDraw.getHandlers(0));
+    ges.registerAll(LuckyDraw.getHandlers(0, rt));
 
-    const initial = gs.handSize;
+    const initial = rt.getEffectiveHandSize();
     const ctx: CardDrawnContext = {
       phase: 'PLAYER_PLACING',
       level: 1,
       board: [],
-      gameState: gs.getSnapshot(),
+      gameState: { level: 1, score: 0, gold: 0, foundation: Infinity, handSize: initial, scoreChances: 3, discardChances: 2, enhanceDecayMultiplier: 1, scoringRoundsElapsed: 0, prevLevelScore: 0, prevLevelTarget: 0 },
       card: card('spades', 14), // Ace
     };
 
     ges.emit(GAME_EVENTS.CARD_DRAWN, ctx);
 
-    expect(gs.handSize).toBe(initial + 1);
+    expect(rt.getEffectiveHandSize()).toBe(initial + 1);
   });
 
   it('does NOT change handSize for non-Ace cards', () => {
-    ges.registerAll(LuckyDraw.getHandlers(0));
+    ges.registerAll(LuckyDraw.getHandlers(0, rt));
 
-    const initial = gs.handSize;
+    const initial = rt.getEffectiveHandSize();
     const ctx: CardDrawnContext = {
       phase: 'PLAYER_PLACING',
       level: 1,
       board: [],
-      gameState: gs.getSnapshot(),
+      gameState: { level: 1, score: 0, gold: 0, foundation: Infinity, handSize: initial, scoreChances: 3, discardChances: 2, enhanceDecayMultiplier: 1, scoringRoundsElapsed: 0, prevLevelScore: 0, prevLevelTarget: 0 },
       card: card('hearts', 13), // King, not Ace
     };
 
     ges.emit(GAME_EVENTS.CARD_DRAWN, ctx);
 
-    expect(gs.handSize).toBe(initial); // unchanged
+    expect(rt.getEffectiveHandSize()).toBe(initial); // unchanged
   });
 
   it('stacks across multiple Aces drawn', () => {
-    ges.registerAll(LuckyDraw.getHandlers(0));
+    ges.registerAll(LuckyDraw.getHandlers(0, rt));
 
-    const initial = gs.handSize;
+    const initial = rt.getEffectiveHandSize();
 
     for (const suit of ['spades', 'hearts', 'clubs'] as const) {
       const ctx: CardDrawnContext = {
         phase: 'PLAYER_PLACING',
         level: 1,
         board: [],
-        gameState: gs.getSnapshot(),
+        gameState: { level: 1, score: 0, gold: 0, foundation: Infinity, handSize: initial, scoreChances: 3, discardChances: 2, enhanceDecayMultiplier: 1, scoringRoundsElapsed: 0, prevLevelScore: 0, prevLevelTarget: 0 },
         card: card(suit, 14),
       };
       ges.emit(GAME_EVENTS.CARD_DRAWN, ctx);
     }
 
-    expect(gs.handSize).toBe(initial + 3);
+    expect(rt.getEffectiveHandSize()).toBe(initial + 3);
   });
 });
 
@@ -320,14 +332,13 @@ describe('Multiple enhance cards combined', () => {
   let ges: GameEventSystem;
 
   beforeEach(() => {
-    ges = GameEventSystem.getInstance();
-    ges.unregisterAll();
+    ges = new GameEventSystem();
   });
 
   it('StraightFever + HollowBrick on same layer stacks correctly', () => {
     const LAYER = 2;
-    ges.registerAll(StraightFever.getHandlers(LAYER));
-    ges.registerAll(HollowBrick.getHandlers(LAYER));
+    ges.registerAll(StraightFever.getHandlers(LAYER, null as any));
+    ges.registerAll(HollowBrick.getHandlers(LAYER, null as any));
 
     const cards = [card('spades', 5), card('hearts', 6), card('clubs', 7)];
     const ctx = makeScoreLayerCtx(LAYER, cards);
@@ -346,8 +357,8 @@ describe('Multiple enhance cards combined', () => {
 
   it('RoyalExclusive + HollowBrick: bonus + doubled multiplier', () => {
     const LAYER = 1;
-    ges.registerAll(RoyalExclusive.getHandlers(LAYER));
-    ges.registerAll(HollowBrick.getHandlers(LAYER));
+    ges.registerAll(RoyalExclusive.getHandlers(LAYER, null as any));
+    ges.registerAll(HollowBrick.getHandlers(LAYER, null as any));
 
     const cards = [card('spades', 11), card('hearts', 12)]; // J + Q
     const ctx = makeScoreLayerCtx(LAYER, cards);
@@ -364,9 +375,9 @@ describe('Multiple enhance cards combined', () => {
   });
 
   it('enhance cards on different layers only affect their own layer', () => {
-    ges.registerAll(StraightFever.getHandlers(0));
-    ges.registerAll(RoyalExclusive.getHandlers(1));
-    ges.registerAll(HollowBrick.getHandlers(2));
+    ges.registerAll(StraightFever.getHandlers(0, null as any));
+    ges.registerAll(RoyalExclusive.getHandlers(1, null as any));
+    ges.registerAll(HollowBrick.getHandlers(2, null as any));
 
     // Score layer 0 — StraightFever installed but no straight
     const ctx0 = makeScoreLayerCtx(0, [card('spades', 14)]);

@@ -1,6 +1,6 @@
 import type { CardData } from './card';
 
-export type GamePhase = 'LEVEL_START' | 'PLAYER_PLACING' | 'SCORING' | 'LEVEL_END';
+export type GamePhase = 'IDLE' | 'LEVEL_START' | 'PLAYER_PLACING' | 'SCORING' | 'LEVEL_END';
 
 export interface LayerSnapshot {
   index: number;
