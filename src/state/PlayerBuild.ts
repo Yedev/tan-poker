@@ -19,6 +19,7 @@ export interface PlayerBuild {
   basePlaysPerRound: number;
   baseDiscardChancesPerRound: number;
   baseDiscardCountPerAction: number;
+  enhanceSlotCount: number;
   activeEnhanceCards: (EnhanceCardDef | null)[];
   enhanceInventory: EnhanceCardDef[];
   consumeInventory: ConsumeCardDef[];
@@ -32,6 +33,7 @@ export function createDefaultPlayerBuild(): PlayerBuild {
     basePlaysPerRound: PLAY_CARDS_LIMIT,
     baseDiscardChancesPerRound: DISCARD_CHANCES_PER_ROUND,
     baseDiscardCountPerAction: DISCARD_CARDS_LIMIT,
+    enhanceSlotCount: 4,
     activeEnhanceCards: [null, null, null, null],
     enhanceInventory: [],
     consumeInventory: [],

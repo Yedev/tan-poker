@@ -99,9 +99,9 @@ export class LevelRuntime {
     this.modifiers[key] += delta;
   }
 
-  /** 手牌上限 = 关卡配置基础值 + 增强修饰 */
+  /** 手牌上限 = 玩家构建基础值 + 增强修饰 */
   getEffectiveHandSize(): number {
-    return this.levelConfig.handSize + this.modifiers.handSizeDelta;
+    return this.profile.playerBuild.baseHandSize + this.modifiers.handSizeDelta;
   }
 
   getEffectivePlaysPerRound(): number {

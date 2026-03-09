@@ -12,8 +12,8 @@ import type { VisualDelta, LevelResult } from '../state/LevelRuntime';
 import { GameEventSystem } from '../events/GameEventSystem';
 import { GAME_EVENTS } from '../events/GameEvents';
 import { EventBus } from '../events/EventBus';
-import { PhaseManager } from '../logic/PhaseManager';
-import { HandAnimator } from '../rendering/HandAnimator';
+import { PhaseManager } from '../state/PhaseManager';
+import { HandAnimator } from '../animators/HandAnimator';
 import { HAND_TYPE_LABELS } from '../logic/scoring';
 import { computeRoundScore } from '../logic/ScoreEngine';
 import { wouldCollapse, checkCollapse, getLayerWeight } from '../logic/collapse';
@@ -90,6 +90,7 @@ export class BattleScene extends Phaser.Scene {
   private targetScore = 0;                      // 本关目标分数
   private level = 1;                            // 当前关卡
   private isAnimating = false;                  // 是否正在播放动画（阻塞交互）
+  private collapseDepth = 0;                    // 嵌套坍塌计数，防止提前解锁交互
   private pendingCollapseResult: CollapseResult | null = null; // 待处理的坍塌结果
 
   // ── UI 组件 ─────────────────────────────────────────────────────────────
@@ -147,14 +148,14 @@ export class BattleScene extends Phaser.Scene {
     Logger.info(`━━━━━━━━━━ 关卡 ${this.level} [${cfg.name}] 初始化 ━━━━━━━━━━`);
     Logger.info(
       `目标分: ${cfg.targetScore}  计分次数: ${cfg.scoreChances}  ` +
-      `手牌上限: ${cfg.handSize}  挑战槽: ${cfg.challengeSlotCount}  增强槽: ${cfg.enhanceSlotCount}`,
+      `手牌上限: ${profile.playerBuild.baseHandSize}  挑战槽: ${cfg.challengeSlotCount}  增强槽: ${profile.playerBuild.enhanceSlotCount}`,
     );
 
     this.eventSystem.unregisterAll();
 
     // Register enhance card handlers (up to enhanceSlotCount)
     profile.playerBuild.activeEnhanceCards.forEach((card, i) => {
-      if (card && i < cfg.enhanceSlotCount) {
+      if (card && i < profile.playerBuild.enhanceSlotCount) {
         Logger.info(`加载增强卡 [Layer${i}]: ${card.name} (${card.id})`);
         this.eventSystem.registerAll(card.getHandlers(i, this.levelRuntime));
       }
@@ -229,7 +230,7 @@ export class BattleScene extends Phaser.Scene {
       this.enhanceSlots.push(eSlot);
 
       const enhCardDef = profile.playerBuild.activeEnhanceCards[li];
-      if (enhCardDef && li < cfg.enhanceSlotCount) {
+      if (enhCardDef && li < profile.playerBuild.enhanceSlotCount) {
         new EnhanceCard(this, layout.enhanceSlot.x, layout.y, enhCardDef).setDepth(3);
       }
 
@@ -319,19 +320,16 @@ export class BattleScene extends Phaser.Scene {
     if (emptySlots.length < selected.length) return;
 
     this.isAnimating = true;
-    const promises: Promise<void>[] = [];
     for (let i = 0; i < selected.length; i++) {
-      promises.push(this.placeCard(selected[i], emptySlots[i], i * 120));
-      if (this.pendingCollapseResult) break;
+      await this.placeCard(selected[i], emptySlots[i]);
+      const result = this.pendingCollapseResult;
+      this.pendingCollapseResult = null;
+      if (result) {
+        await this.executeCollapse(result);
+        break; // board state changed; remaining cards should not be placed
+      }
     }
-    await Promise.all(promises);
-    const result = this.pendingCollapseResult;
-    this.pendingCollapseResult = null;
-    if (result) {
-      await this.executeCollapse(result);
-    } else {
-      this.isAnimating = false;
-    }
+    if (this.collapseDepth === 0) this.isAnimating = false;
   }
 
   /**
@@ -490,6 +488,7 @@ export class BattleScene extends Phaser.Scene {
       `销毁卡牌: [${Logger.fmtCards(result.destroyedCards)}] (${result.destroyedCards.length} 张)`,
     );
 
+    this.collapseDepth++;
     this.isAnimating = true;
     this.cameras.main.shake(300, 0.015);
 
@@ -521,7 +520,8 @@ export class BattleScene extends Phaser.Scene {
     }
 
     await this.waitMs(500);
-    this.isAnimating = false;
+    this.collapseDepth--;
+    if (this.collapseDepth === 0) this.isAnimating = false;
     this.updateWeightDisplay();
     this.updateLayerHighlights();
   }

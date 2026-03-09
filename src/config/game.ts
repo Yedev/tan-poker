@@ -1,4 +1,4 @@
-import type { HandType } from './types/card';
+import type { HandType } from '../types/card';
 
 export const GAME_WIDTH = typeof window !== 'undefined' ? window.innerWidth : 1280;
 export const GAME_HEIGHT = typeof window !== 'undefined' ? window.innerHeight : 720;

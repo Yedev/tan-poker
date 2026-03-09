@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm dev:*)",
+      "Bash(netstat:*)",
+      "Bash(tasklist:*)",
+      "Bash(cmd:*)",
+      "Bash(powershell:*)",
+      "Bash(do echo:*)",
+      "Bash(cmd.exe:*)"
+    ]
+  }
+}

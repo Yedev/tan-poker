@@ -51,15 +51,15 @@ export class ShopScene extends Phaser.Scene {
 
     this.add.text(20, 20, `总分: ${profile.score}`, { fontSize: '16px', color: '#cccccc', fontFamily: 'monospace' });
     this.add.text(20, 46, `牌组: ${profile.playerBuild.deck.length} 张`, { fontSize: '16px', color: '#aaaaaa', fontFamily: 'monospace' });
-    this.add.text(20, 72, `增强槽: ${cfg.enhanceSlotCount} 个`, { fontSize: '14px', color: '#aabbcc', fontFamily: 'monospace' });
+    this.add.text(20, 72, `增强槽: ${profile.playerBuild.enhanceSlotCount} 个`, { fontSize: '14px', color: '#aabbcc', fontFamily: 'monospace' });
     this.add.text(20, 94, `挑战卡: ${cfg.challengeSlotCount} 张`, { fontSize: '14px', color: '#ffaaaa', fontFamily: 'monospace' });
 
     // Pick challenge cards for this level
     this.setupChallengeCards(cfg.challengeSlotCount, cfg);
 
-    this.createLayerSlots(cfg.enhanceSlotCount);
+    this.createLayerSlots(profile.playerBuild.enhanceSlotCount);
     this.createInventorySlots();
-    this.createShopItems(cfg.enhanceSlotCount > 0);
+    this.createShopItems(profile.playerBuild.enhanceSlotCount > 0);
     this.setupDragEvents();
 
     this.refreshCards();
