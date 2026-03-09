@@ -8,7 +8,7 @@ import type {
 } from '../types/events';
 import { PlayerProfile } from '../state/PlayerProfile';
 import { LevelRuntime } from '../state/LevelRuntime';
-import type { EffectDelta, LevelResult } from '../state/LevelRuntime';
+import type { VisualDelta, LevelResult } from '../state/LevelRuntime';
 import { GameEventSystem } from '../events/GameEventSystem';
 import { GAME_EVENTS } from '../events/GameEvents';
 import { EventBus } from '../events/EventBus';
@@ -418,7 +418,7 @@ export class BattleScene extends Phaser.Scene {
    * 4. 应用副作用
    * 5. 播放飞行动画
    */
-  private placeCard(card: Card, slot: BoardSlot, flyDelay = 0): Promise<void> {
+  private async placeCard(card: Card, slot: BoardSlot, flyDelay = 0): Promise<void> {
     Logger.card('放置', `${Logger.fmtCard(card.cardData)} → Layer${slot.layerIndex} Slot${slot.slotIndex}`);
 
     card.location = 'board';
@@ -449,7 +449,7 @@ export class BattleScene extends Phaser.Scene {
     ctx.slotIndex = slot.slotIndex;
     ges.emit(GAME_EVENTS.CARD_PLACED, ctx);
 
-    this.flushSideEffects(ctx);
+    await this.flushSideEffects(ctx);
 
     this.updateWeightDisplay();
     this.updateLayerHighlights();
@@ -478,11 +478,6 @@ export class BattleScene extends Phaser.Scene {
     });
   }
 
-  private async runCollapseCheck() {
-    const result = this.levelRuntime.checkAndPerformCollapse();
-    if (result) await this.executeCollapse(result);
-  }
-
   /**
    * 执行坍塌 - 当牌型满足坍塌条件时触发
    * 1. 触发 COLLAPSE_TRIGGERED 事件
@@ -505,7 +500,7 @@ export class BattleScene extends Phaser.Scene {
     ctx.destroyedCards = result.destroyedCards;
     ges.emit(GAME_EVENTS.COLLAPSE_TRIGGERED, ctx);
 
-    this.flushSideEffects(ctx);
+    await this.flushSideEffects(ctx);
 
     for (const li of result.destroyedLayerIndices) {
       for (let si = 0; si < this.pokerSlots[li].length; si++) {
@@ -541,7 +536,7 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  private applyEffectDeltas(deltas: EffectDelta[]) {
+  private applyVisualDeltas(deltas: VisualDelta[]) {
     const rt = this.levelRuntime;
     for (const d of deltas) {
       switch (d.type) {
@@ -560,8 +555,6 @@ export class BattleScene extends Phaser.Scene {
           }
           break;
         }
-        case 'SCORE_CHANGED':
-          break;
         case 'HAND_TRIMMED':
           while (this.handAnimator.handCards.length > d.newCount) {
             const removed = this.handAnimator.handCards.pop()!;
@@ -571,16 +564,6 @@ export class BattleScene extends Phaser.Scene {
           break;
         case 'WEIGHT_UPDATE':
           this.updateWeightDisplay();
-          break;
-        case 'COLLAPSE_CHECK':
-          this.runCollapseCheck();
-          break;
-        case 'GOLD_CHANGED':
-          break;
-        case 'SCORE_CHANCE_CHANGED':
-          break;
-        case 'FORCE_FAIL':
-          rt.levelForceFailed = true;
           break;
         case 'HAND_CARD_DISCARDED': {
           const extra = this.handAnimator.handCards.length - rt.hand.length;
@@ -632,7 +615,7 @@ export class BattleScene extends Phaser.Scene {
     ctx.targetScore = this.targetScore;
     ges.emit(GAME_EVENTS.LEVEL_START, ctx);
 
-    this.flushSideEffects(ctx);
+    await this.flushSideEffects(ctx);
 
     this.registry.set('scoreChances', this.levelRuntime.scoreChances);
 
@@ -647,13 +630,13 @@ export class BattleScene extends Phaser.Scene {
       }
     }
 
-    this.fillHand();
+    await this.fillHand();
 
     await this.waitMs(400);
     this.phaseManager.transitionTo('PLAYER_PLACING');
   }
 
-  private fillHand(exact?: number) {
+  private async fillHand(exact?: number): Promise<void> {
     const rt = this.levelRuntime;
     const prevCount = this.handAnimator.handCards.length;
     const newCards = exact !== undefined
@@ -669,7 +652,7 @@ export class BattleScene extends Phaser.Scene {
       Logger.card('摸牌', Logger.fmtCard(card));
       ges.emit(GAME_EVENTS.CARD_DRAWN, ctx);
 
-      this.flushSideEffects(ctx);
+      await this.flushSideEffects(ctx);
     }
 
     const keptCards = newCards.filter(c => rt.hand.includes(c));
@@ -698,7 +681,7 @@ export class BattleScene extends Phaser.Scene {
     this.phaseManager.transitionTo('SCORING');
   }
 
-  private onDiscardRequested() {
+  private async onDiscardRequested() {
     if (this.phaseManager.getPhase() !== 'PLAYER_PLACING') return;
     if (this.isAnimating) return;
     const rt = this.levelRuntime;
@@ -729,7 +712,7 @@ export class BattleScene extends Phaser.Scene {
       card.destroy();
     }
 
-    this.fillHand(discardCount);
+    await this.fillHand(discardCount);
 
     this.syncRegistry();
     this.updateLayerHighlights();
@@ -800,7 +783,7 @@ export class BattleScene extends Phaser.Scene {
 
     if (endCtx.sideEffects?.length) {
       Logger.effect(`SCORE_END sideEffects: ${JSON.stringify(endCtx.sideEffects)}`);
-      this.flushSideEffects(endCtx);
+      await this.flushSideEffects(endCtx);
     }
 
     // 原子化应用本轮计分（含消耗计分机会、清除层覆盖）
@@ -819,7 +802,7 @@ export class BattleScene extends Phaser.Scene {
     } else {
       rt.resetRound();
       this.syncRegistry();
-      this.fillHand();
+      await this.fillHand();
       this.phaseManager.transitionTo('PLAYER_PLACING');
     }
   }
@@ -990,11 +973,12 @@ export class BattleScene extends Phaser.Scene {
     return new Promise(r => this.time.delayedCall(ms, r));
   }
 
-  /** 执行副作用 - 将事件产生的 sideEffects 应用到游戏状态 */
-  private flushSideEffects(ctx: BaseEventContext): void {
-    if (ctx.sideEffects?.length) {
-      this.applyEffectDeltas(this.levelRuntime.applyEffects(ctx.sideEffects));
-    }
+  /** 执行副作用 - 将视觉 delta 应用到渲染层，坍塌结果由调用方 await */
+  private async flushSideEffects(ctx: BaseEventContext): Promise<void> {
+    if (!ctx.sideEffects?.length) return;
+    const { visuals, collapseResult } = this.levelRuntime.applyEffects(ctx.sideEffects);
+    this.applyVisualDeltas(visuals);
+    if (collapseResult) await this.executeCollapse(collapseResult);
   }
 
   /** 同步注册表 - 将游戏状态同步到 Phaser registry，供 UI 场景读取 */

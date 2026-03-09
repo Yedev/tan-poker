@@ -11,18 +11,20 @@ import { checkCollapse } from '../logic/collapse';
 import { Logger } from '../utils/Logger';
 import { HAND_SIZE_CAP, ENHANCE_DECAY_FLOOR } from '../config';
 
-export type EffectDelta =
+/** 纯视觉 delta：只描述"画面上需要什么变化"，不含任何游戏状态指令 */
+export type VisualDelta =
   | { type: 'CARD_RANK_CHANGED'; layerIndex: number; slotIndex: number; suit: Suit; newRank: Rank }
   | { type: 'SLOT_CLEARED'; layerIndex: number; slotIndex: number }
-  | { type: 'SCORE_CHANGED'; newScore: number }
   | { type: 'HAND_TRIMMED'; newCount: number }
   | { type: 'WEIGHT_UPDATE' }
-  | { type: 'COLLAPSE_CHECK' }
-  | { type: 'GOLD_CHANGED'; newGold: number }
-  | { type: 'SCORE_CHANCE_CHANGED'; newChances: number }
-  | { type: 'FORCE_FAIL' }
   | { type: 'ENHANCE_DECAYED'; multiplier: number }
   | { type: 'HAND_CARD_DISCARDED'; count: number };
+
+export interface ApplyEffectsResult {
+  visuals: VisualDelta[];
+  /** 副作用触发的坍塌结果，由调用方负责执行动画 */
+  collapseResult?: CollapseResult;
+}
 
 export interface LevelResult {
   survived: boolean;
@@ -240,23 +242,24 @@ export class LevelRuntime {
     };
   }
 
-  applyEffects(effects: SideEffect[]): EffectDelta[] {
-    const deltas: EffectDelta[] = [];
+  applyEffects(effects: SideEffect[]): ApplyEffectsResult {
+    const visuals: VisualDelta[] = [];
+    let needsCollapseCheck = false;
+
     for (const effect of effects) {
       Logger.effect(`执行副作用: ${effect.type}  参数: ${JSON.stringify(effect)}`);
       switch (effect.type) {
         case 'MODIFY_RANDOM_CARDS': {
           Logger.effect(`MODIFY_RANDOM_CARDS: 随机修改 ${effect.count} 张棋盘牌  rank ${effect.valueChange >= 0 ? '+' : ''}${effect.valueChange}`);
-          deltas.push(...this._applyModifyCards(effect.count, effect.valueChange));
-          deltas.push({ type: 'WEIGHT_UPDATE' });
-          if (effect.recalculateCollapse) deltas.push({ type: 'COLLAPSE_CHECK' });
+          visuals.push(...this._applyModifyCards(effect.count, effect.valueChange));
+          visuals.push({ type: 'WEIGHT_UPDATE' });
+          if (effect.recalculateCollapse) needsCollapseCheck = true;
           break;
         }
         case 'MODIFY_TOTAL_SCORE': {
           const before = this.levelScore;
           this.levelScore = Math.floor(this.levelScore * effect.multiplier);
           Logger.effect(`MODIFY_TOTAL_SCORE: ${before} × ${effect.multiplier} → ${this.levelScore}`);
-          deltas.push({ type: 'SCORE_CHANGED', newScore: this.levelScore });
           break;
         }
         case 'MODIFY_HAND_SIZE': {
@@ -270,29 +273,27 @@ export class LevelRuntime {
               Logger.card('手牌超限移除', Logger.fmtCard(removed));
               this.discardPile.push(removed);
             }
-            deltas.push({ type: 'HAND_TRIMMED', newCount: this.hand.length });
+            visuals.push({ type: 'HAND_TRIMMED', newCount: this.hand.length });
           }
           break;
         }
         case 'DESTROY_RANDOM_SLOT': {
           Logger.effect(`DESTROY_RANDOM_SLOT: Layer${effect.layerIndex} 销毁 ${effect.count} 个格子`);
-          deltas.push(...this._applyDestroySlots(effect.layerIndex, effect.count));
-          deltas.push({ type: 'WEIGHT_UPDATE' });
-          if (effect.recalculateCollapse) deltas.push({ type: 'COLLAPSE_CHECK' });
+          visuals.push(...this._applyDestroySlots(effect.layerIndex, effect.count));
+          visuals.push({ type: 'WEIGHT_UPDATE' });
+          if (effect.recalculateCollapse) needsCollapseCheck = true;
           break;
         }
         case 'MODIFY_GOLD': {
           const before = this.profile.gold;
           this.profile.gold = Math.max(0, Math.floor(this.profile.gold * (effect.multiplier ?? 1)) + effect.delta);
           Logger.effect(`MODIFY_GOLD: ${before} → ${this.profile.gold}`);
-          deltas.push({ type: 'GOLD_CHANGED', newGold: this.profile.gold });
           break;
         }
         case 'MODIFY_SCORE_CHANCE': {
           const before = this.scoreChances;
           this.scoreChances = Math.max(1, this.scoreChances + effect.delta);
           Logger.effect(`MODIFY_SCORE_CHANCE: ${before} → ${this.scoreChances}`);
-          deltas.push({ type: 'SCORE_CHANCE_CHANGED', newChances: this.scoreChances });
           break;
         }
         case 'DISCARD_RANDOM_HAND': {
@@ -303,26 +304,25 @@ export class LevelRuntime {
             if (idx >= 0) this.hand.splice(idx, 1);
             this.discardPile.push(c);
           }
-          deltas.push({ type: 'HAND_CARD_DISCARDED', count: discarded.length });
+          visuals.push({ type: 'HAND_CARD_DISCARDED', count: discarded.length });
           break;
         }
         case 'DESTROY_RANDOM_BOARD_CARD': {
           Logger.effect(`DESTROY_RANDOM_BOARD_CARD: 随机摧毁 ${effect.count} 张棋盘牌`);
-          deltas.push(...this._applyDestroyBoardCards(effect.count));
-          deltas.push({ type: 'WEIGHT_UPDATE' });
-          if (effect.recalculateCollapse) deltas.push({ type: 'COLLAPSE_CHECK' });
+          visuals.push(...this._applyDestroyBoardCards(effect.count));
+          visuals.push({ type: 'WEIGHT_UPDATE' });
+          if (effect.recalculateCollapse) needsCollapseCheck = true;
           break;
         }
         case 'APPLY_ENHANCE_DECAY': {
           this.enhanceDecayMultiplier = Math.max(ENHANCE_DECAY_FLOOR, this.enhanceDecayMultiplier * effect.factor);
           Logger.effect(`APPLY_ENHANCE_DECAY: 增强系数 → ${this.enhanceDecayMultiplier.toFixed(3)}`);
-          deltas.push({ type: 'ENHANCE_DECAYED', multiplier: this.enhanceDecayMultiplier });
+          visuals.push({ type: 'ENHANCE_DECAYED', multiplier: this.enhanceDecayMultiplier });
           break;
         }
         case 'FORCE_FAIL_LEVEL': {
           this.levelForceFailed = true;
           Logger.effect('FORCE_FAIL_LEVEL: 强制本关失败 (末日时钟)');
-          deltas.push({ type: 'FORCE_FAIL' });
           break;
         }
         case 'ADD_NEXT_SCORE_BONUS': {
@@ -333,7 +333,7 @@ export class LevelRuntime {
         case 'DISABLE_LAYER_SLOT': {
           this.disabledSlots.add(`${effect.layerIndex}-${effect.slotIndex}`);
           Logger.effect(`DISABLE_LAYER_SLOT: Layer${effect.layerIndex} Slot${effect.slotIndex} 禁用`);
-          deltas.push({ type: 'SLOT_CLEARED', layerIndex: effect.layerIndex, slotIndex: effect.slotIndex });
+          visuals.push({ type: 'SLOT_CLEARED', layerIndex: effect.layerIndex, slotIndex: effect.slotIndex });
           break;
         }
         case 'VOID_DRAWN_CARD': {
@@ -360,16 +360,21 @@ export class LevelRuntime {
             this.board[effect.layerIndex].pokerSlots[effect.slotIndex] = null;
             Logger.card('精准爆破', `${Logger.fmtCard(card)} (Layer${effect.layerIndex}-Slot${effect.slotIndex})`);
           }
-          deltas.push({ type: 'SLOT_CLEARED', layerIndex: effect.layerIndex, slotIndex: effect.slotIndex });
-          deltas.push({ type: 'WEIGHT_UPDATE' });
-          if (!effect.skipCollapse) deltas.push({ type: 'COLLAPSE_CHECK' });
+          visuals.push({ type: 'SLOT_CLEARED', layerIndex: effect.layerIndex, slotIndex: effect.slotIndex });
+          visuals.push({ type: 'WEIGHT_UPDATE' });
+          if (!effect.skipCollapse) needsCollapseCheck = true;
           break;
         }
         default:
           Logger.warn(`未知副作用类型: ${(effect as { type: string }).type}`);
       }
     }
-    return deltas;
+
+    const collapseResult = needsCollapseCheck
+      ? (this.checkAndPerformCollapse() ?? undefined)
+      : undefined;
+
+    return { visuals, collapseResult };
   }
 
   addScore(amount: number): void {
@@ -419,7 +424,7 @@ export class LevelRuntime {
     return drawn;
   }
 
-  private _applyModifyCards(count: number, valueChange: number): EffectDelta[] {
+  private _applyModifyCards(count: number, valueChange: number): VisualDelta[] {
     const allCards: { li: number; si: number; data: CardData }[] = [];
     for (let li = 0; li < this.board.length; li++) {
       for (let si = 0; si < this.board[li].pokerSlots.length; si++) {
@@ -428,7 +433,7 @@ export class LevelRuntime {
       }
     }
     const shuffled = shuffle(allCards).slice(0, count);
-    const deltas: EffectDelta[] = [];
+    const deltas: VisualDelta[] = [];
     for (const entry of shuffled) {
       const oldRank = entry.data.rank;
       const newRank = Math.max(2, Math.min(14, entry.data.rank + valueChange)) as Rank;
@@ -439,14 +444,14 @@ export class LevelRuntime {
     return deltas;
   }
 
-  private _applyDestroySlots(layerIndex: number, count: number): EffectDelta[] {
+  private _applyDestroySlots(layerIndex: number, count: number): VisualDelta[] {
     const occupied: number[] = [];
     for (let si = 0; si < this.board[layerIndex].pokerSlots.length; si++) {
       if (this.board[layerIndex].pokerSlots[si]) occupied.push(si);
     }
     const toDestroy = shuffle(occupied).slice(0, count);
     Logger.effect(`DESTROY_RANDOM_SLOT Layer${layerIndex}: 销毁格子 [${toDestroy.map(si => `Slot${si}`).join(', ')}]`);
-    const deltas: EffectDelta[] = [];
+    const deltas: VisualDelta[] = [];
     for (const si of toDestroy) {
       const card = this.board[layerIndex].pokerSlots[si];
       if (card) {
@@ -459,7 +464,7 @@ export class LevelRuntime {
     return deltas;
   }
 
-  private _applyDestroyBoardCards(count: number): EffectDelta[] {
+  private _applyDestroyBoardCards(count: number): VisualDelta[] {
     const allCards: { li: number; si: number }[] = [];
     for (let li = 0; li < this.board.length; li++) {
       for (let si = 0; si < this.board[li].pokerSlots.length; si++) {
@@ -467,7 +472,7 @@ export class LevelRuntime {
       }
     }
     const toDestroy = shuffle(allCards).slice(0, count);
-    const deltas: EffectDelta[] = [];
+    const deltas: VisualDelta[] = [];
     for (const { li, si } of toDestroy) {
       const card = this.board[li].pokerSlots[si];
       if (card) {
